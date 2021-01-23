@@ -1,6 +1,6 @@
-# cosmos-node - A light weight Azure CosmosDB Client for nodejs
+# node-cosmos - A light weight Azure CosmosDB Client for nodejs
 
-Cosmos-node is a client for Azure CosmosDB 's SQL API (also called documentdb formerly). Which is an opinionated library aimed at ease of use for CRUD and find (aka. query).
+node-cosmos is a client for Azure CosmosDB 's SQL API (also called documentdb formerly). Which is an opinionated library aimed at ease of use for CRUD and find (aka. query).
 
 ## Background
 * Microsoft's official nodejs CosmosDB client is verbose to use
@@ -10,18 +10,10 @@ Cosmos-node is a client for Azure CosmosDB 's SQL API (also called documentdb fo
 
 ## Quickstart
 
-### Install
-
-```bash
-$ yarn add cosmos-node
-#OR
-$ npm i cosmos-node
-```
-
 ### Start programming 
 
 ```typescript
-import { Cosmos } from "cosmos-node"
+import { Cosmos } from "node-cosmos"
 
 const db = await new Cosmos("YOUR_CONNECTION_STRING").getDatabase("my-awesome-db");
 
