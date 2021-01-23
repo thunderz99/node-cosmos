@@ -1,0 +1,46 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "launch node",
+            "skipFiles": ["<node_internals>/**"],
+            "program": "${workspaceFolder}/dist/index.js",
+            "outFiles": ["${workspaceFolder}/**/*.js"]
+        },
+        // {
+        //     "type": "node",
+        //     "request": "launch",
+        //     "name": "Jest",
+        //     "program": "${workspaceFolder}/node_modules/.bin/jest",
+        //     "args": ["--runInBand", "${file}", "--no-cache"],
+        //     "console": "integratedTerminal",
+        //     "internalConsoleOptions": "neverOpen",
+        //     "disableOptimisticBPs": true,
+        //     "windows": {
+        //         "program": "${workspaceFolder}/node_modules/jest/bin/jest"
+        //     }
+        // },
+        {
+            "name": "Debug Jest Tests",
+            "type": "node",
+            "request": "launch",
+            "runtimeArgs": [
+                "--inspect-brk",
+                "${workspaceRoot}/node_modules/.bin/jest",
+                "--runInBand",
+                "${file}"
+            ],
+            "console": "integratedTerminal",
+            "internalConsoleOptions": "neverOpen",
+            "port": 9229
+        },
+        {
+            "type": "node",
+            "request": "attach",
+            "name": "Attach",
+            "port": 9229
+        }
+    ]
+}

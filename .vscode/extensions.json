@@ -1,0 +1,8 @@
+{
+  "recommendations": [
+    "esbenp.prettier-vscode",
+    "dbaeumer.vscode-eslint",
+    "ionutvmi.path-autocomplete",
+    "amatiasq.sort-imports"
+  ]
+}
