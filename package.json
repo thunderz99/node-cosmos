@@ -1,6 +1,6 @@
 {
     "name": "node-cosmos",
-    "version": "0.0.9",
+    "version": "0.0.10",
     "description": "A light weight azure cosmosdb client aiming at ease of use",
     "main": "dist/index.js",
     "scripts": {
@@ -20,7 +20,7 @@
         "light"
     ],
     "dependencies": {
-        "@azure/cosmos": "^3.7.4"
+        "@azure/cosmos": "^3.9.5"
     },
     "devDependencies": {
         "@types/jest": "^26.0.4",
