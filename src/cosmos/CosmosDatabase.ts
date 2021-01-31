@@ -65,7 +65,7 @@ export class CosmosDatabase {
      * Create a collection if not exists
      * @param coll
      */
-    async createCollection(coll: string): Promise<Container> {
+    public async createCollection(coll: string): Promise<Container> {
         const { database } = this;
         const partitionKey = "/" + _partition;
         const conf = { id: coll, partitionKey, defaultTtl: -1 };
@@ -77,7 +77,7 @@ export class CosmosDatabase {
      *
      * @param coll
      */
-    protected async getCollection(coll: string): Promise<Container> {
+    public async getCollection(coll: string): Promise<Container> {
         const { collectionMap } = this;
         let collection = collectionMap.get(coll);
         if (!collection) {
@@ -93,7 +93,7 @@ export class CosmosDatabase {
      * @param data
      * @param partition
      */
-    async create(
+    public async create(
         coll: string,
         data: CosmosDocument,
         partition: string = coll,
@@ -121,7 +121,7 @@ export class CosmosDatabase {
      * @param partition
      * @param defaultValue defaultValue if item not exist
      */
-    async read(
+    public async read(
         coll: string,
         id: string,
         partition: string = coll,
@@ -159,7 +159,7 @@ export class CosmosDatabase {
      * @param data
      * @param partition
      */
-    async upsert(
+    public async upsert(
         coll: string,
         data: CosmosDocument,
         partition: string = coll,
@@ -185,7 +185,7 @@ export class CosmosDatabase {
      * @param data
      * @param partition
      */
-    async update(
+    public async update(
         coll: string,
         data: CosmosDocument,
         partition: string = coll,
@@ -213,7 +213,7 @@ export class CosmosDatabase {
      * @param id
      * @param partition
      */
-    async delete(coll: string, id: string, partition: string = coll): Promise<CosmosId> {
+    public async delete(coll: string, id: string, partition: string = coll): Promise<CosmosId> {
         const container = await this.getCollection(coll);
 
         const item = container.item(id, partition);
@@ -238,7 +238,11 @@ export class CosmosDatabase {
      * @param condition
      * @param partition
      */
-    async find(coll: string, condition: Condition, partition?: string): Promise<CosmosDocument[]> {
+    public async find(
+        coll: string,
+        condition: Condition,
+        partition?: string,
+    ): Promise<CosmosDocument[]> {
         const container = await this.getCollection(coll);
 
         const partitionKey = partition || coll;
@@ -263,7 +267,7 @@ export class CosmosDatabase {
      * @param condition
      * @param partition
      */
-    async count(coll: string, condition: Condition, partition?: string): Promise<number> {
+    public async count(coll: string, condition: Condition, partition?: string): Promise<number> {
         const container = await this.getCollection(coll);
 
         const partitionKey = partition || coll;

@@ -47,7 +47,7 @@ export class Cosmos {
         console.info(`cosmos key: ${key.substring(0, 3)}...`);
     }
 
-    async getDatabase(db: string): Promise<CosmosDatabase> {
+    public async getDatabase(db: string): Promise<CosmosDatabase> {
         const { client, databaseMap } = this;
 
         const database = databaseMap.get(db);
@@ -66,7 +66,7 @@ export class Cosmos {
         return newDatabase;
     }
 
-    async deleteDatabase(db: string): Promise<void> {
+    public async deleteDatabase(db: string): Promise<void> {
         this.databaseMap.delete(db);
         await this.client.database(db).delete();
     }
