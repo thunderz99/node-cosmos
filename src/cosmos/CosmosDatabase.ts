@@ -257,7 +257,9 @@ export class CosmosDatabase {
         );
 
         const response = await iter.fetchAll();
-        return response.resources || [];
+        const ret = response.resources || [];
+
+        return ret.map((item) => removeUnusedProps(item));
     }
 
     /**
