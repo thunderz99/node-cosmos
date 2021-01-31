@@ -96,6 +96,8 @@ describe("Cosmos Test", () => {
             );
             expect(items?.length).toEqual(2);
             expect(items[0]["firstName"]).toEqual(origin.firstName);
+            //system fields are removed
+            expect(items[0]["_rid"]).toEqual(undefined);
             expect(items[1]["lastName"]).toEqual(origin2.lastName);
 
             //find with condition
@@ -113,6 +115,8 @@ describe("Cosmos Test", () => {
                 "Users",
             );
             expect(items[0]["id"]).toEqual(origin.id);
+            //system fields are removed
+            expect(items[0]["_rid"]).toEqual(undefined);
 
             //count
             const count = await db.count(
