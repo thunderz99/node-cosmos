@@ -68,10 +68,10 @@ const users = await db.find("Collection1", {
 
 ```typescript
 //get db(create if not exist)
-const db = await new Cosmos(process.env.COSMOSDB_CONNECTION_STRING).getDatabase("CosmosDB");
+const db = await new Cosmos(process.env.COSMOSDB_CONNECTION_STRING).getDatabase("Database1");
 
-//create a coll if not exist)
-await db.createCollection(COLL_NAME);
+//create a collection(if not exist)
+await db.createCollection("Collection1");
 
 ```
 
