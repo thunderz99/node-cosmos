@@ -1,5 +1,5 @@
-import { Cosmos, CosmosDatabase, CosmosDocument } from "../../src/cosmos/Cosmos";
-
+import { Cosmos } from "../../src/cosmos/Cosmos";
+import { CosmosDatabase } from "../../src/";
 import dotenv from "dotenv";
 
 dotenv.config(); // .envをprocess.envに割当て
@@ -58,15 +58,21 @@ describe("Cosmos Test", () => {
         }
     });
 
-    it("upsert items", async () => {
+    it("upsert and find items", async () => {
         const origin = {
             id: "user_upsert_id01",
             firstName: "Anony",
             lastName: "Nobody",
         };
+        const origin2 = {
+            id: "user_upsert_id02",
+            firstName: "Tom",
+            lastName: "Luck",
+        };
 
         try {
             const upserted1 = await db.upsert(COLL_NAME, origin, "Users");
+            await db.upsert(COLL_NAME, origin2, "Users");
 
             expect(upserted1.id).toEqual(origin.id);
             expect(upserted1.firstName).toEqual(origin.firstName);
@@ -83,30 +89,46 @@ describe("Cosmos Test", () => {
             // expect(upserted2.lastName).toEqual(partialUpdate.lastName);
 
             //find should work
-            let result = await db.find(
+            let items = await db.find(
                 COLL_NAME,
-                { filter: { lastName: origin.lastName } },
+                { filter: { "id%": "user_upsert" }, sort: ["id", "ASC"] },
                 "Users",
             );
-            expect(result.items?.length).toEqual(1);
-            expect(result.items[0]["firstName"]).toEqual(origin.firstName);
+            expect(items?.length).toEqual(2);
+            expect(items[0]["firstName"]).toEqual(origin.firstName);
+            expect(items[1]["lastName"]).toEqual(origin2.lastName);
 
             //find with condition
-
-            result = await db.find(
+            items = await db.find(
                 COLL_NAME,
                 {
                     filter: {
                         id: "user_upsert_id01", // id equals "user_upsert_id01"
                         lastName: origin.lastName,
                     },
-                    sort: [["firstName", "ASC"]],
+                    sort: ["firstName", "ASC"],
                     offset: 0,
                     limit: 100,
                 },
                 "Users",
             );
-            expect(result.items[0]["id"]).toEqual(origin.id);
+            expect(items[0]["id"]).toEqual(origin.id);
+
+            //count
+            const count = await db.count(
+                COLL_NAME,
+                {
+                    filter: {
+                        id: "user_upsert_id01", // id equals "user_upsert_id01"
+                        lastName: origin.lastName,
+                    },
+                    sort: ["firstName", "ASC"],
+                    offset: 0,
+                    limit: 100,
+                },
+                "Users",
+            );
+            expect(count).toEqual(1);
         } finally {
             await db.delete(COLL_NAME, origin.id, "Users");
         }
