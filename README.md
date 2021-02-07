@@ -119,7 +119,6 @@ const cond = {
     "firstName !=": "Andy", // not equal
     location:  ["New York", "Paris"], // location is 'New York' or 'Paris'. see cosmosdb IN 
     "age >=": 20, // see cosmosdb compare operators
-    "middleName OR firstName STARTSWITH": "H", // see cosmosdb STARTSWITH
     "desciption CONTAINS": "Project manager",// see cosmosdb CONTAINS
     "skill ARRAY_CONTAINS": "Java", // see cosmosdb ARRAY_CONTAINS
   ),
