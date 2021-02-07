@@ -7,7 +7,8 @@ export declare type CosmosId = {
 export declare class CosmosError implements ErrorResponse {
     name: string;
     message: string;
-    constructor(init: Partial<ErrorResponse>);
+    code: number;
+    constructor(errorResponse: Partial<ErrorResponse>);
 }
 /**
  * class represents a Cosmos Database
@@ -35,14 +36,22 @@ export declare class CosmosDatabase {
      */
     create(coll: string, data: CosmosDocument, partition?: string): Promise<CosmosDocument>;
     /**
-     * Read an item. Throw DocumentClientException(404 NotFound) if object not exist. Can be override be setting the defaultValue.
+     * Read an item. Throw DocumentClientException(404 NotFound) if object not exist
+     *
+     * @param coll
+     * @param id
+     * @param partition
+     */
+    read(coll: string, id: string, partition?: string): Promise<CosmosDocument>;
+    /**
+     * Read an item. return defaultValue if item not exist
      *
      * @param coll
      * @param id
      * @param partition
      * @param defaultValue defaultValue if item not exist
      */
-    read(coll: string, id: string, partition?: string, defaultValue?: CosmosDocument | undefined): Promise<CosmosDocument>;
+    readOrDefault(coll: string, id: string, partition: string, defaultValue: CosmosDocument | null): Promise<CosmosDocument | null>;
     /**
      * Upsert an item. Insert will be performed if not exist. Do not support partial update.
      * @param coll

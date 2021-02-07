@@ -22,12 +22,24 @@ export declare const DEFAULT_LIMIT = 100;
  * User defined type guard for JsonObject
  * @param json
  */
-export declare const isJsonObject: (json: Json) => json is JsonObject;
+export declare const isJsonObject: (json: Json | undefined) => json is JsonObject;
 /**
  * convert condition to a querySpec (SQL and params)
  * @param condition
  */
 export declare const toQuerySpec: (condition: Condition, countOnly?: boolean | undefined) => SqlQuerySpec;
+export declare type FilterResult = {
+    queries: string[];
+    params: {
+        name: string;
+        value: Json;
+    }[];
+};
+/**
+ * generate query text and params for filter part.
+ * @param _filter
+ */
+export declare const _generateFilter: (_filter: JsonObject | undefined) => FilterResult;
 /**
  * flatten an object to a flat "obj1.key1.key2" format
  *
@@ -38,3 +50,8 @@ export declare const toQuerySpec: (condition: Condition, countOnly?: boolean | u
  * @param keys
  */
 export declare const _flatten: (obj?: JsonObject | undefined, result?: JsonObject, keys?: string[]) => JsonObject;
+/**
+ * Instead of c.key, return c["key"] or c["key1"]["key2"] for query. In order for cosmosdb reserved words
+ * @param key
+ */
+export declare const _formatKey: (key: string) => string;

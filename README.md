@@ -22,9 +22,9 @@ await db.upsert("my-awesome-coll", { id:"id011", firstName: "Anony", lastName: "
 const users = await db.find("Collection1", {
     filter: {
         id : "id010", // id equals "id010"
-        lastName : "Nobody" 
+        "lastName%" : "Nobo" // lastName starts with Nobo
     },
-    sort:["firstName", "ASC"],
+    sort: ["firstName", "ASC"],
     offset: 0,
     limit: 100
 });
@@ -53,10 +53,10 @@ await db.upsert("Collection1", {id: "id011", firstName: "Tom", lastName: "Banks"
 
 const users = await db.find("Collection1", {
     filter: {
-        id : "id010", // id equals "id010"
+        id : ["id010", "id011"] // id equals "id010" or "id011"
         lastName : "Nobody" 
     },
-    sort:["firstName", "ASC"],
+    sort: ["firstName", "ASC"],
     offset: 0,
     limit: 100
 }, "Users");
@@ -75,8 +75,63 @@ await db.createCollection("Collection1");
 
 ```
 
+### CRUD
+
+```typescript
+
+const db = await new Cosmos(process.env.COSMOSDB_CONNECTION_STRING).getDatabase("Database1");
+
+// Read
+const user1 = await db.read("Collection1", "id001", "Users");
+
+// Update
+user1.lastName = "Updated";
+await db.update("Collection1", user1, "Users");
+
+// Upsert
+await db.upsert("Collection1", user1, "Users");
+
+// Delete
+await db.delete("Collection1", user1.id, "Users");
+
+```
+
+### Partial Update
+
+```typescript
+
+// update the lastName field only
+await db.update("Collection", {id: "id001", lastName:"LastNameUpdated"}, , "Users");
+
+// if you want to override the item without partial update feature, you can use `upsert` instead, which does not perform partial updating.
+
+```
+
+
 ### Complex queries
 
-TODO
+```typescript
+
+const cond = {
+  filter: {
+    id: "id010", // id equal to 'id010'
+    "lastName%": "Ban", // last name STARTSWITH "Ban"
+    "firstName !=": "Andy", // not equal
+    location:  ["New York", "Paris"], // location is 'New York' or 'Paris'. see cosmosdb IN 
+    "age >=": 20, // see cosmosdb compare operators
+    "middleName OR firstName STARTSWITH": "H", // see cosmosdb STARTSWITH
+    "desciption CONTAINS": "Project manager",// see cosmosdb CONTAINS
+    "skill ARRAY_CONTAINS": "Java", // see cosmosdb ARRAY_CONTAINS
+  ),
+  sort: ["lastName", "ASC"], //optional sort order
+  offset: 0, //optional offset
+  limit: 100 //optional limit
+}
+
+const users = await db.find("Collection1", cond, "Users");
+
+
+
+```
 
 

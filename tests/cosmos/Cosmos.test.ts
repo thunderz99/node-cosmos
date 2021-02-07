@@ -48,7 +48,6 @@ describe("Cosmos Test", () => {
 
             const user1 = { id: "user_update_id01", firstName: "Updated" };
 
-            //partial update
             const updated = await db.update(COLL_NAME, user1, "Users");
             expect(updated.id).toEqual(origin.id);
             expect(updated.firstName).toEqual(user1.firstName);
@@ -81,12 +80,12 @@ describe("Cosmos Test", () => {
             const read = await db.read(COLL_NAME, origin.id, "Users");
             expect(read.firstName).toEqual(origin.firstName);
 
-            //partial upsert TODO
-            // const partialUpdate = { id: origin.id, lastName: "partialUpdate" };
-            // const upserted2 = await db.upsert(COLL_NAME, partialUpdate, "Users");
-            // expect(upserted2.id).toEqual(origin.id);
-            // expect(upserted2.firstName).toEqual(origin.firstName);
-            // expect(upserted2.lastName).toEqual(partialUpdate.lastName);
+            //partial update
+            const partialUpdate = { id: origin.id, lastName: "partialUpdate" };
+            const updated2 = await db.update(COLL_NAME, partialUpdate, "Users");
+            expect(updated2.id).toEqual(origin.id);
+            expect(updated2.firstName).toEqual(origin.firstName);
+            expect(updated2.lastName).toEqual(partialUpdate.lastName);
 
             //find should work
             let items = await db.find(
@@ -106,7 +105,7 @@ describe("Cosmos Test", () => {
                 {
                     filter: {
                         id: "user_upsert_id01", // id equals "user_upsert_id01"
-                        lastName: origin.lastName,
+                        "lastName CONTAINS": "Upd",
                     },
                     sort: ["firstName", "ASC"],
                     offset: 0,
@@ -123,8 +122,8 @@ describe("Cosmos Test", () => {
                 COLL_NAME,
                 {
                     filter: {
-                        id: "user_upsert_id01", // id equals "user_upsert_id01"
-                        lastName: origin.lastName,
+                        "id >": "user_upsert_id01", // id equals "user_upsert_id01"
+                        lastName: [origin2.lastName],
                     },
                     sort: ["firstName", "ASC"],
                     offset: 0,
@@ -152,6 +151,34 @@ describe("Cosmos Test", () => {
             expect(eStr.includes("404")).toEqual(true);
         } finally {
             await db.delete(COLL_NAME, origin.id, "Users");
+        }
+    });
+
+    it("404 error will be thrown when reading not exist item", async () => {
+        const origin = {
+            id: "user_read_not_exist",
+            firstName: "Anony",
+            lastName: "Nobody",
+        };
+
+        try {
+            await db.read(COLL_NAME, origin.id, "Users");
+        } catch (err) {
+            const eStr = JSON.stringify(err, Object.getOwnPropertyNames(err));
+            expect(eStr.includes("404")).toEqual(true);
+        } finally {
+            await db.delete(COLL_NAME, origin.id, "Users");
+        }
+    });
+
+    it("default value should be returned if not exist", async () => {
+        try {
+            const user = await db.readOrDefault(COLL_NAME, "NotExistId", "Users", null);
+
+            expect(user).toBeNull();
+        } catch (err) {
+            fail("should not throw exception");
+        } finally {
         }
     });
 });

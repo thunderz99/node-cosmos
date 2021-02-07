@@ -26,10 +26,12 @@ export type CosmosId =
 export class CosmosError implements ErrorResponse {
     name = "CosmosError";
     message: string;
+    code: number;
 
-    constructor(init: Partial<ErrorResponse>) {
-        Object.assign(this, init);
-        this.message = init.message || "";
+    constructor(errorResponse: Partial<ErrorResponse>) {
+        Object.assign(this, errorResponse);
+        this.message = errorResponse.message || "";
+        this.code = errorResponse.code || errorResponse.statusCode;
     }
 }
 
@@ -114,19 +116,45 @@ export class CosmosDatabase {
     }
 
     /**
-     * Read an item. Throw DocumentClientException(404 NotFound) if object not exist. Can be override be setting the defaultValue.
+     * Read an item. Throw DocumentClientException(404 NotFound) if object not exist
+     *
+     * @param coll
+     * @param id
+     * @param partition
+     */
+    public async read(coll: string, id: string, partition: string = coll): Promise<CosmosDocument> {
+        const container = await this.getCollection(coll);
+
+        const item = container.item(id, partition);
+        const itemResponse = await executeWithRetry<ItemResponse<CosmosDocument>>(() =>
+            item.read<CosmosDocument>(),
+        );
+
+        const { statusCode, resource } = itemResponse;
+
+        if (statusCode === 404) {
+            throw new CosmosError(itemResponse);
+        }
+
+        assertIsDefined(resource);
+
+        return resource;
+    }
+
+    /**
+     * Read an item. return defaultValue if item not exist
      *
      * @param coll
      * @param id
      * @param partition
      * @param defaultValue defaultValue if item not exist
      */
-    public async read(
+    public async readOrDefault(
         coll: string,
         id: string,
-        partition: string = coll,
-        defaultValue: CosmosDocument | undefined = undefined,
-    ): Promise<CosmosDocument> {
+        partition: string,
+        defaultValue: CosmosDocument | null,
+    ): Promise<CosmosDocument | null> {
         const container = await this.getCollection(coll);
 
         const item = container.item(id, partition);
@@ -137,7 +165,7 @@ export class CosmosDatabase {
 
             const { statusCode, resource } = itemResponse;
 
-            if (statusCode === 404) {
+            if (statusCode >= 400) {
                 throw new CosmosError(itemResponse);
             }
 
@@ -145,7 +173,7 @@ export class CosmosDatabase {
 
             return resource;
         } catch (e) {
-            if (e.code === 404 && defaultValue !== undefined) {
+            if (e.code === 404) {
                 return defaultValue;
             } else {
                 throw e;

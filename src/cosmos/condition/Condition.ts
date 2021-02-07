@@ -1,4 +1,5 @@
 import { SqlQuerySpec } from "@azure/cosmos";
+import { parse } from "./Expression";
 
 // A type for json
 export type Json = null | boolean | number | string | JsonArray | JsonObject;
@@ -29,23 +30,15 @@ export const DEFAULT_LIMIT = 100;
  * User defined type guard for JsonObject
  * @param json
  */
-export const isJsonObject = (json: Json): json is JsonObject => {
+export const isJsonObject = (json: Json | undefined): json is JsonObject => {
     return (
+        json !== undefined &&
         json !== null &&
         typeof json !== "boolean" &&
         typeof json !== "number" &&
-        typeof json !== "string"
+        typeof json !== "string" &&
+        !Array.isArray(json)
     );
-};
-
-/**
- * Convert to use reserved words. e.g: r.group -> r["group"]
- */
-const _wrap = (k: string) => {
-    return k
-        .split(".")
-        .map((i) => `["${i}"]`)
-        .join("");
 };
 
 /**
@@ -59,52 +52,24 @@ export const toQuerySpec = (condition: Condition, countOnly?: boolean): SqlQuery
     //TODO fields
     const fields = countOnly ? "COUNT(1)" : "*";
 
-    // normalize the filter
-    const filter = _flatten(_filter);
-    const query: string[] = [];
-    const param: { name: string; value: Json }[] = [];
+    // filters
+    const { queries, params } = _generateFilter(_filter);
 
-    Object.keys(filter).forEach((k) => {
-        const p = `@${k.replace(/[$.%]/g, "_")}`;
-
-        let _k = k
-            .split(".")
-            .reduce(
-                (r, f) => {
-                    r.push(_wrap(f));
-                    return r;
-                },
-                ["r"],
-            )
-            .join("");
-
-        if (Array.isArray(filter[k])) {
-            // ex. filter: '{"id":["ID001", "ID002"]}'
-            query.push(`ARRAY_CONTAINS(${p}, ${_k})`);
-        } else {
-            if (0 < _k.indexOf('%"')) {
-                _k = _k.replace('%"', '"');
-                query.push(`STARTSWITH(${_k}, ${p})`);
-            } else {
-                query.push(`${_k} = ${p}`);
-            }
-        }
-        param.push({ name: p, value: filter[k] });
-    });
-
-    let queryText = [`SELECT  ${fields} FROM root r`, query.join(" AND ")]
+    let queryText = [`SELECT  ${fields} FROM root r`, queries.join(" AND ")]
         .filter((s) => s)
         .join(" WHERE ");
 
+    // sort
     if (!countOnly && sort) {
         // r.name
-        const order = sort.length ? " ORDER BY " + `r${_wrap(sort[0])}` : "";
+        const order = sort.length ? " ORDER BY " + _formatKey(sort[0]) : "";
         // ASC
         const order2 = sort.length > 1 ? ` ${sort[1]}` : "";
 
         queryText += order + order2;
     }
 
+    // offset and limit
     if (!countOnly) {
         //default limit is 100 to protect db
         limit = limit || DEFAULT_LIMIT;
@@ -117,12 +82,44 @@ export const toQuerySpec = (condition: Condition, countOnly?: boolean): SqlQuery
 
     const querySpec: SqlQuerySpec = {
         query: queryText,
-        parameters: param,
+        parameters: params,
     };
 
     console.info("querySpec:", querySpec);
 
     return querySpec;
+};
+
+export type FilterResult = {
+    queries: string[];
+    params: { name: string; value: Json }[];
+};
+
+/**
+ * generate query text and params for filter part.
+ * @param _filter
+ */
+export const _generateFilter = (_filter: JsonObject | undefined): FilterResult => {
+    // undefined filter
+    if (!_filter) {
+        return { queries: [], params: [] };
+    }
+    // normalize the filter
+    const filter = _flatten(_filter);
+
+    // process binary expressions {"count >": 10, "lastName !=": "Banks", "firstName CONTAINS"}
+
+    let queries: string[] = [];
+    let params: { name: string; value: Json }[] = [];
+
+    Object.keys(filter).forEach((k) => {
+        const exp = parse(k, filter[k]);
+        const { queries: expQueries, params: expParams } = exp.toFilterResult();
+        queries = queries.concat(expQueries);
+        params = params.concat(expParams);
+    });
+
+    return { queries, params };
 };
 
 /**
@@ -154,4 +151,21 @@ export const _flatten = (
         keys.pop();
     });
     return result;
+};
+
+/**
+ * Instead of c.key, return c["key"] or c["key1"]["key2"] for query. In order for cosmosdb reserved words
+ * @param key
+ */
+export const _formatKey = (key: string): string => {
+    return key
+        .split(".")
+        .reduce(
+            (r, f) => {
+                r.push(`["${f}"]`);
+                return r;
+            },
+            ["r"],
+        )
+        .join("");
 };
