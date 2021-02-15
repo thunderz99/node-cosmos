@@ -121,7 +121,7 @@ const cond = {
     "age >=": 20, // see cosmosdb compare operators
     "desciption CONTAINS": "Project manager",// see cosmosdb CONTAINS
     "skill ARRAY_CONTAINS": "Java", // see cosmosdb ARRAY_CONTAINS
-  ),
+  },
   sort: ["lastName", "ASC"], //optional sort order
   offset: 0, //optional offset
   limit: 100 //optional limit

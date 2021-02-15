@@ -1,7 +1,7 @@
 "use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
+exports.__esModule = true;
 exports._formatKey = exports._flatten = exports._generateFilter = exports.toQuerySpec = exports.isJsonObject = exports.DEFAULT_LIMIT = void 0;
-const Expression_1 = require("./Expression");
+var Expression_1 = require("./Expression");
 /**
  * Default find limit to protect db. override this by setting condition.limit explicitly.
  */
@@ -10,7 +10,7 @@ exports.DEFAULT_LIMIT = 100;
  * User defined type guard for JsonObject
  * @param json
  */
-exports.isJsonObject = (json) => {
+exports.isJsonObject = function (json) {
     return (json !== undefined &&
         json !== null &&
         typeof json !== "boolean" &&
@@ -22,22 +22,22 @@ exports.isJsonObject = (json) => {
  * convert condition to a querySpec (SQL and params)
  * @param condition
  */
-exports.toQuerySpec = (condition, countOnly) => {
-    const { filter: _filter, sort = [], offset } = condition;
-    let { limit } = condition;
+exports.toQuerySpec = function (condition, countOnly) {
+    var _filter = condition.filter, _a = condition.sort, sort = _a === void 0 ? [] : _a, offset = condition.offset;
+    var limit = condition.limit;
     //TODO fields
-    const fields = countOnly ? "COUNT(1)" : "*";
+    var fields = countOnly ? "COUNT(1)" : "*";
     // filters
-    const { queries, params } = exports._generateFilter(_filter);
-    let queryText = [`SELECT  ${fields} FROM root r`, queries.join(" AND ")]
-        .filter((s) => s)
+    var _b = exports._generateFilter(_filter), queries = _b.queries, params = _b.params;
+    var queryText = ["SELECT  " + fields + " FROM root r", queries.join(" AND ")]
+        .filter(function (s) { return s; })
         .join(" WHERE ");
     // sort
     if (!countOnly && sort) {
         // r.name
-        const order = sort.length ? " ORDER BY " + exports._formatKey(sort[0]) : "";
+        var order = sort.length ? " ORDER BY " + exports._formatKey(sort[0]) : "";
         // ASC
-        const order2 = sort.length > 1 ? ` ${sort[1]}` : "";
+        var order2 = sort.length > 1 ? " " + sort[1] : "";
         queryText += order + order2;
     }
     // offset and limit
@@ -45,13 +45,13 @@ exports.toQuerySpec = (condition, countOnly) => {
         //default limit is 100 to protect db
         limit = limit || exports.DEFAULT_LIMIT;
         // https://docs.microsoft.com/en-us/azure/cosmos-db/how-to-sql-query#OffsetLimitClause
-        const OFFSET = offset !== undefined ? ` OFFSET ${offset}` : " OFFSET 0";
-        const LIMIT = limit !== undefined ? ` LIMIT ${limit}` : "";
+        var OFFSET = offset !== undefined ? " OFFSET " + offset : " OFFSET 0";
+        var LIMIT = limit !== undefined ? " LIMIT " + limit : "";
         queryText = queryText + OFFSET + LIMIT;
     }
-    const querySpec = {
+    var querySpec = {
         query: queryText,
-        parameters: params,
+        parameters: params
     };
     console.info("querySpec:", querySpec);
     return querySpec;
@@ -60,23 +60,23 @@ exports.toQuerySpec = (condition, countOnly) => {
  * generate query text and params for filter part.
  * @param _filter
  */
-exports._generateFilter = (_filter) => {
+exports._generateFilter = function (_filter) {
     // undefined filter
     if (!_filter) {
         return { queries: [], params: [] };
     }
     // normalize the filter
-    const filter = exports._flatten(_filter);
+    var filter = exports._flatten(_filter);
     // process binary expressions {"count >": 10, "lastName !=": "Banks", "firstName CONTAINS"}
-    let queries = [];
-    let params = [];
-    Object.keys(filter).forEach((k) => {
-        const exp = Expression_1.parse(k, filter[k]);
-        const { queries: expQueries, params: expParams } = exp.toFilterResult();
+    var queries = [];
+    var params = [];
+    Object.keys(filter).forEach(function (k) {
+        var exp = Expression_1.parse(k, filter[k]);
+        var _a = exp.toFilterResult(), expQueries = _a.queries, expParams = _a.params;
         queries = queries.concat(expQueries);
         params = params.concat(expParams);
     });
-    return { queries, params };
+    return { queries: queries, params: params };
 };
 /**
  * flatten an object to a flat "obj1.key1.key2" format
@@ -87,13 +87,15 @@ exports._generateFilter = (_filter) => {
  * @param result
  * @param keys
  */
-exports._flatten = (obj, result = {}, keys = []) => {
+exports._flatten = function (obj, result, keys) {
+    if (result === void 0) { result = {}; }
+    if (keys === void 0) { keys = []; }
     if (!obj) {
         return {};
     }
-    Object.keys(obj).forEach((k) => {
+    Object.keys(obj).forEach(function (k) {
         keys.push(k);
-        const childObj = obj[k];
+        var childObj = obj[k];
         if (exports.isJsonObject(childObj)) {
             exports._flatten(childObj, result, keys);
         }
@@ -108,13 +110,12 @@ exports._flatten = (obj, result = {}, keys = []) => {
  * Instead of c.key, return c["key"] or c["key1"]["key2"] for query. In order for cosmosdb reserved words
  * @param key
  */
-exports._formatKey = (key) => {
+exports._formatKey = function (key) {
     return key
         .split(".")
-        .reduce((r, f) => {
-        r.push(`["${f}"]`);
+        .reduce(function (r, f) {
+        r.push("[\"" + f + "\"]");
         return r;
     }, ["r"])
         .join("");
 };
-//# sourceMappingURL=Condition.js.map
