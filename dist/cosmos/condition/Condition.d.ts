@@ -55,3 +55,4 @@ export declare const _flatten: (obj?: JsonObject | undefined, result?: JsonObjec
  * @param key
  */
 export declare const _formatKey: (key: string) => string;
+//# sourceMappingURL=Condition.d.ts.map

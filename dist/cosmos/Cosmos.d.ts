@@ -17,3 +17,4 @@ export declare class Cosmos {
     getDatabase(db: string): Promise<CosmosDatabase>;
     deleteDatabase(db: string): Promise<void>;
 }
+//# sourceMappingURL=Cosmos.d.ts.map
