@@ -91,3 +91,4 @@ export declare class CosmosDatabase {
      */
     count(coll: string, condition: Condition, partition?: string): Promise<number>;
 }
+//# sourceMappingURL=CosmosDatabase.d.ts.map

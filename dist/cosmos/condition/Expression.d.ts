@@ -14,3 +14,4 @@ export declare class SimpleExpression implements Expression {
     constructor(key: string, value: Json);
     toFilterResult(): FilterResult;
 }
+//# sourceMappingURL=Expression.d.ts.map
