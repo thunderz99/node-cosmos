@@ -5,10 +5,11 @@ const Condition_1 = require("./condition/Condition");
 const assert_1 = require("../util/assert");
 const RetryUtil_1 = require("../util/RetryUtil");
 class CosmosError {
-    constructor(init) {
+    constructor(errorResponse) {
         this.name = "CosmosError";
-        Object.assign(this, init);
-        this.message = init.message || "";
+        Object.assign(this, errorResponse);
+        this.message = errorResponse.message || "";
+        this.code = errorResponse.code || errorResponse.statusCode;
     }
 }
 exports.CosmosError = CosmosError;
@@ -75,27 +76,45 @@ class CosmosDatabase {
         return removeUnusedProps(resource);
     }
     /**
-     * Read an item. Throw DocumentClientException(404 NotFound) if object not exist. Can be override be setting the defaultValue.
+     * Read an item. Throw DocumentClientException(404 NotFound) if object not exist
+     *
+     * @param coll
+     * @param id
+     * @param partition
+     */
+    async read(coll, id, partition = coll) {
+        const container = await this.getCollection(coll);
+        const item = container.item(id, partition);
+        const itemResponse = await RetryUtil_1.executeWithRetry(() => item.read());
+        const { statusCode, resource } = itemResponse;
+        if (statusCode === 404) {
+            throw new CosmosError(itemResponse);
+        }
+        assert_1.assertIsDefined(resource);
+        return resource;
+    }
+    /**
+     * Read an item. return defaultValue if item not exist
      *
      * @param coll
      * @param id
      * @param partition
      * @param defaultValue defaultValue if item not exist
      */
-    async read(coll, id, partition = coll, defaultValue = undefined) {
+    async readOrDefault(coll, id, partition, defaultValue) {
         const container = await this.getCollection(coll);
         const item = container.item(id, partition);
         try {
             const itemResponse = await RetryUtil_1.executeWithRetry(() => item.read());
             const { statusCode, resource } = itemResponse;
-            if (statusCode === 404) {
+            if (statusCode >= 400) {
                 throw new CosmosError(itemResponse);
             }
             assert_1.assertIsDefined(resource);
             return resource;
         }
         catch (e) {
-            if (e.code === 404 && defaultValue !== undefined) {
+            if (e.code === 404) {
                 return defaultValue;
             }
             else {
@@ -177,7 +196,8 @@ class CosmosDatabase {
         const querySpec = Condition_1.toQuerySpec(condition);
         const iter = await RetryUtil_1.executeWithRetry(async () => container.items.query(querySpec, options));
         const response = await iter.fetchAll();
-        return response.resources || [];
+        const ret = response.resources || [];
+        return ret.map((item) => removeUnusedProps(item));
     }
     /**
      * count data by condition
