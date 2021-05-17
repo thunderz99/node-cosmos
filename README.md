@@ -22,7 +22,7 @@ await db.upsert("my-awesome-coll", { id:"id011", firstName: "Anony", lastName: "
 const users = await db.find("Collection1", {
     filter: {
         id : "id010", // id equals "id010"
-        "lastName LIKE" : "%Nobo" // lastName starts with Nobo
+        "lastName LIKE" : "Nobo%" // lastName starts with Nobo
     },
     sort: ["firstName", "ASC"],
     offset: 0,
