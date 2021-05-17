@@ -62,11 +62,19 @@ describe("Cosmos Test", () => {
             id: "user_upsert_id01",
             firstName: "Anony",
             lastName: "Nobody",
+            address: {
+                country: "Japan",
+                city: "Tokyo",
+            },
         };
         const origin2 = {
             id: "user_upsert_id02",
             firstName: "Tom",
             lastName: "Luck",
+            address: {
+                country: "Japan",
+                city: "Osaka",
+            },
         };
 
         try {
@@ -99,23 +107,55 @@ describe("Cosmos Test", () => {
             expect(items[0]["_rid"]).toEqual(undefined);
             expect(items[1]["lastName"]).toEqual(origin2.lastName);
 
-            //find with condition
-            items = await db.find(
-                COLL_NAME,
-                {
-                    filter: {
-                        id: "user_upsert_id01", // id equals "user_upsert_id01"
-                        "lastName CONTAINS": "Upd",
+            {
+                //find using = and CONTAINS
+                items = await db.find(
+                    COLL_NAME,
+                    {
+                        filter: {
+                            "lastName CONTAINS": "Upd",
+                        },
+                        sort: ["firstName", "ASC"],
+                        offset: 0,
+                        limit: 100,
                     },
-                    sort: ["firstName", "ASC"],
-                    offset: 0,
-                    limit: 100,
-                },
-                "Users",
-            );
-            expect(items[0]["id"]).toEqual(origin.id);
-            //system fields are removed
-            expect(items[0]["_rid"]).toEqual(undefined);
+                    "Users",
+                );
+                expect(items[0]["id"]).toEqual(origin.id);
+                //system fields are removed
+                expect(items[0]["_rid"]).toEqual(undefined);
+            }
+
+            {
+                //find using LIKE
+                items = await db.find(
+                    COLL_NAME,
+                    {
+                        filter: {
+                            "address.city LIKE": "%saka",
+                        },
+                        sort: ["id", "ASC"],
+                    },
+                    "Users",
+                );
+
+                expect(items[0]["id"]).toEqual(origin2.id);
+
+                items = await db.find(
+                    COLL_NAME,
+                    {
+                        filter: {
+                            "address.city LIKE": "%k%",
+                        },
+                        sort: ["id", "ASC"],
+                    },
+                    "Users",
+                );
+
+                expect(items.length).toEqual(2);
+                expect(items[0]["id"]).toEqual(origin.id);
+                expect(items[1]["id"]).toEqual(origin2.id);
+            }
 
             //count
             const count = await db.count(

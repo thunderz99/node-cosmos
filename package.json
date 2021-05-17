@@ -1,7 +1,12 @@
 {
     "name": "node-cosmos",
-    "version": "0.0.13",
-    "description": "A light weight azure cosmosdb client aiming at ease of use",
+    "version": "0.0.14",
+    "description": "A light weight azure cosmosdb client aiming at ease of use for creating REST API. Supports json filter, sort and offset/limit",
+    "homepage": "https://github.com/thunderz99/node-cosmos",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/thunderz99/node-cosmos"
+    },
     "main": "dist/index.js",
     "scripts": {
         "build": "tsc",
