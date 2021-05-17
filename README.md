@@ -1,6 +1,6 @@
 # node-cosmos - A light weight Azure CosmosDB Client for nodejs
 
-node-cosmos is a client for Azure CosmosDB 's SQL API (also called documentdb formerly). Which is an opinionated library aimed at ease of use for CRUD and find (aka. query).
+node-cosmos is a client for Azure CosmosDB 's SQL API. Which is an opinionated library aimed at ease of creating REST API for CRUD and find.
 
 ## Background
 * Microsoft's official nodejs CosmosDB client is verbose to use
@@ -22,7 +22,7 @@ await db.upsert("my-awesome-coll", { id:"id011", firstName: "Anony", lastName: "
 const users = await db.find("Collection1", {
     filter: {
         id : "id010", // id equals "id010"
-        "lastName%" : "Nobo" // lastName starts with Nobo
+        "lastName LIKE" : "%Nobo" // lastName starts with Nobo
     },
     sort: ["firstName", "ASC"],
     offset: 0,
@@ -115,7 +115,7 @@ await db.update("Collection", {id: "id001", lastName:"LastNameUpdated"}, , "User
 const cond = {
   filter: {
     id: "id010", // id equal to 'id010'
-    "lastName%": "Ban", // last name STARTSWITH "Ban"
+    "lastName LIKE": "%Ban%", // last name CONTAINS "Ban"
     "firstName !=": "Andy", // not equal
     location:  ["New York", "Paris"], // location is 'New York' or 'Paris'. see cosmosdb IN 
     "age >=": 20, // see cosmosdb compare operators
@@ -132,5 +132,4 @@ const users = await db.find("Collection1", cond, "Users");
 
 
 ```
-
 

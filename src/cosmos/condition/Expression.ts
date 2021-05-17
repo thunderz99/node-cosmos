@@ -7,25 +7,29 @@ export interface Expression {
     toFilterResult: () => FilterResult;
 }
 
-const EXPRESSION_PATTERN = /(.+)\s(STARTSWITH|ENDSWITH|CONTAINS|ARRAY_CONTAINS|=|!=|<|<=|>|>=)\s*$/;
+const EXPRESSION_PATTERN = /(.+)\s(STARTSWITH|ENDSWITH|CONTAINS|ARRAY_CONTAINS|LIKE|=|!=|<|<=|>|>=)\s*$/;
+const BINARY_OPERATOR_PATTERN = /^\s*(LIKE|IN|=|!=|<|<=|>|>=)\s*$/;
 
 export const parse = (key: string, value: Json): Expression => {
     const match = EXPRESSION_PATTERN.exec(key);
 
     // if filter contains expression
     if (match) {
-        // count > 10, get "count" part
+        // "count >": 10, get "count" part
         const newKey = match[1] || key;
         const exp = new SimpleExpression(newKey, value);
 
         // get ">" part
         exp.operator = match[2] || "=";
-        exp.type = /\w+/.test(exp.operator) ? "BINARY_FUNCTION" : "BINARY_OPERATOR";
+        exp.type = BINARY_OPERATOR_PATTERN.test(exp.operator)
+            ? "BINARY_OPERATOR"
+            : "BINARY_FUNCTION";
         return exp;
     } else {
         const exp = new SimpleExpression(key, value);
 
         // special case for {"lastName%" : "Banks"}
+        // we recommend {"lastName LIKE" : "%Banks"}, but leave this for backwards compatibility.
         if (key.match(/.+%$/)) {
             exp.key = key.replace("%", "");
             exp.operator = "STARTSWITH";
