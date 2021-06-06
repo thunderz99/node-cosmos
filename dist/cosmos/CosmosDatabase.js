@@ -190,8 +190,7 @@ class CosmosDatabase {
      */
     async find(coll, condition, partition) {
         const container = await this.getCollection(coll);
-        const partitionKey = partition || coll;
-        //TODO support cross partition query
+        const partitionKey = partition;
         const options = { partitionKey };
         const querySpec = Condition_1.toQuerySpec(condition);
         const iter = await RetryUtil_1.executeWithRetry(async () => container.items.query(querySpec, options));

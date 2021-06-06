@@ -76,10 +76,22 @@ describe("Cosmos Test", () => {
                 city: "Osaka",
             },
         };
+        const origin3 = {
+            id: "user_upsert_id03",
+            firstName: "Judy",
+            lastName: "Hawks",
+            address: {
+                country: "England",
+                city: "London",
+            },
+        };
 
         try {
             const upserted1 = await db.upsert(COLL_NAME, origin, "Users");
-            await db.upsert(COLL_NAME, origin2, "Users");
+            const upserted2 = await db.upsert(COLL_NAME, origin2, "Users");
+
+            // a different partition
+            const upserted3 = await db.upsert(COLL_NAME, origin3, "Members");
 
             expect(upserted1.id).toEqual(origin.id);
             expect(upserted1.firstName).toEqual(origin.firstName);
@@ -95,21 +107,23 @@ describe("Cosmos Test", () => {
             expect(updated2.firstName).toEqual(origin.firstName);
             expect(updated2.lastName).toEqual(partialUpdate.lastName);
 
-            //find should work
-            let items = await db.find(
-                COLL_NAME,
-                { filter: { "id%": "user_upsert" }, sort: ["id", "ASC"] },
-                "Users",
-            );
-            expect(items?.length).toEqual(2);
-            expect(items[0]["firstName"]).toEqual(origin.firstName);
-            //system fields are removed
-            expect(items[0]["_rid"]).toEqual(undefined);
-            expect(items[1]["lastName"]).toEqual(origin2.lastName);
+            {
+                //find should work
+                const items = await db.find(
+                    COLL_NAME,
+                    { filter: { "id%": "user_upsert" }, sort: ["id", "ASC"] },
+                    "Users",
+                );
+                expect(items?.length).toEqual(2);
+                expect(items[0]["firstName"]).toEqual(origin.firstName);
+                //system fields are removed
+                expect(items[0]["_rid"]).toEqual(undefined);
+                expect(items[1]["lastName"]).toEqual(origin2.lastName);
+            }
 
             {
                 //find using = and CONTAINS
-                items = await db.find(
+                const items = await db.find(
                     COLL_NAME,
                     {
                         filter: {
@@ -128,7 +142,7 @@ describe("Cosmos Test", () => {
 
             {
                 //find using LIKE
-                items = await db.find(
+                let items = await db.find(
                     COLL_NAME,
                     {
                         filter: {
@@ -157,23 +171,49 @@ describe("Cosmos Test", () => {
                 expect(items[1]["id"]).toEqual(origin2.id);
             }
 
-            //count
-            const count = await db.count(
-                COLL_NAME,
-                {
-                    filter: {
-                        "id >": "user_upsert_id01", // id equals "user_upsert_id01"
-                        lastName: [origin2.lastName],
+            {
+                //count
+                const count = await db.count(
+                    COLL_NAME,
+                    {
+                        filter: {
+                            "id >": "user_upsert_id01", // id equals "user_upsert_id01"
+                            lastName: [origin2.lastName],
+                        },
+                        sort: ["firstName", "ASC"],
+                        offset: 0,
+                        limit: 100,
                     },
-                    sort: ["firstName", "ASC"],
-                    offset: 0,
-                    limit: 100,
-                },
-                "Users",
-            );
-            expect(count).toEqual(1);
+                    "Users",
+                );
+                expect(count).toEqual(1);
+            }
+
+            {
+                //find with cross-partition
+                const items = await db.find(
+                    COLL_NAME,
+                    {
+                        filter: {
+                            "id LIKE": "user_upsert_id0%",
+                        },
+                        sort: ["id", "ASC"],
+                        offset: 0,
+                        limit: 100,
+                    },
+                    undefined, // set the partition to undefined
+                );
+
+                expect(items.length).toEqual(3);
+                expect(items[0]["id"]).toEqual(origin.id);
+                expect(items[1]["id"]).toEqual(origin2.id);
+                expect(items[2]["id"]).toEqual(origin3.id);
+                expect(items[2]["_partition"]).toEqual("Members");
+            }
         } finally {
             await db.delete(COLL_NAME, origin.id, "Users");
+            await db.delete(COLL_NAME, origin2.id, "Users");
+            await db.delete(COLL_NAME, origin3.id, "Members");
         }
     });
 

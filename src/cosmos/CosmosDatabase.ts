@@ -273,9 +273,8 @@ export class CosmosDatabase {
     ): Promise<CosmosDocument[]> {
         const container = await this.getCollection(coll);
 
-        const partitionKey = partition || coll;
+        const partitionKey = partition;
 
-        //TODO support cross partition query
         const options: FeedOptions = { partitionKey };
 
         const querySpec = toQuerySpec(condition);

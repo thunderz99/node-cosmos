@@ -101,7 +101,7 @@ await db.delete("Collection1", user1.id, "Users");
 ```typescript
 
 // update the lastName field only
-await db.update("Collection", {id: "id001", lastName:"LastNameUpdated"}, , "Users");
+await db.update("Collection", {id: "id001", lastName:"LastNameUpdated"}, "Users");
 
 // if you want to override the item without partial update feature, you can use `upsert` instead, which does not perform partial updating.
 
@@ -129,7 +129,23 @@ const cond = {
 
 const users = await db.find("Collection1", cond, "Users");
 
-
-
 ```
 
+
+### Cross-partition queries
+
+```typescript
+
+const cond = {
+  filter: {
+    "id LIKE": "ID00%", // id starts with "ID00"
+  },
+};
+
+// if you do not specify the partition, this will be a cross-partition query
+const result = await db.find("Collection1", cond, undefined);
+
+// or just
+const result = await db.find("Collection1", cond);
+
+```
