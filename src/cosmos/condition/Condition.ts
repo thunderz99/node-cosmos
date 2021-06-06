@@ -1,4 +1,5 @@
 import { SqlQuerySpec } from "@azure/cosmos";
+import { assertNotEmpty } from "../../util/assert";
 import { parse } from "./Expression";
 
 // A type for json
@@ -90,9 +91,14 @@ export const toQuerySpec = (condition: Condition, countOnly?: boolean): SqlQuery
     return querySpec;
 };
 
+export type Param = {
+    name: string;
+    value: Json;
+};
+
 export type FilterResult = {
     queries: string[];
-    params: { name: string; value: Json }[];
+    params: Param[];
 };
 
 /**
@@ -155,9 +161,19 @@ export const _flatten = (
 
 /**
  * Instead of c.key, return c["key"] or c["key1"]["key2"] for query. In order for cosmosdb reserved words
- * @param key
+ *
+ * @param key filter's key
+ * @param collectionAlias default to "c", can be "x" when using subquerys for EXISTS or JOIN
+ * @return formatted filter's key c["key1"]["key2"]
  */
-export const _formatKey = (key: string): string => {
+export const _formatKey = (key: string, collectionAlias = "r"): string => {
+    assertNotEmpty(collectionAlias, "collectionAlias");
+
+    if (!key) {
+        // return collectionAlias when key is empty
+        return collectionAlias;
+    }
+
     return key
         .split(".")
         .reduce(
@@ -165,7 +181,7 @@ export const _formatKey = (key: string): string => {
                 r.push(`["${f}"]`);
                 return r;
             },
-            ["r"],
+            [collectionAlias],
         )
         .join("");
 };

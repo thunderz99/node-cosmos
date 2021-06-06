@@ -3,15 +3,19 @@
  */
 import { FilterResult, Json, _formatKey } from "./Condition";
 
+import { SubQueryExpression } from "./SubQueryExpression";
+
 export interface Expression {
     toFilterResult: () => FilterResult;
 }
 
 const EXPRESSION_PATTERN = /(.+)\s(STARTSWITH|ENDSWITH|CONTAINS|ARRAY_CONTAINS|LIKE|=|!=|<|<=|>|>=)\s*$/;
+const SUB_QUERY_EXPRESSION_PATTERN = /(.+)\s(ARRAY_CONTAINS_ANY|ARRAY_CONTAINS_ALL)\s*(.*)$/;
+
 const BINARY_OPERATOR_PATTERN = /^\s*(LIKE|IN|=|!=|<|<=|>|>=)\s*$/;
 
 export const parse = (key: string, value: Json): Expression => {
-    const match = EXPRESSION_PATTERN.exec(key);
+    let match = EXPRESSION_PATTERN.exec(key);
 
     // if filter contains expression
     if (match) {
@@ -25,18 +29,28 @@ export const parse = (key: string, value: Json): Expression => {
             ? "BINARY_OPERATOR"
             : "BINARY_FUNCTION";
         return exp;
-    } else {
-        const exp = new SimpleExpression(key, value);
-
-        // special case for {"lastName%" : "Banks"}
-        // we recommend {"lastName LIKE" : "%Banks"}, but leave this for backwards compatibility.
-        if (key.match(/.+%$/)) {
-            exp.key = key.replace("%", "");
-            exp.operator = "STARTSWITH";
-            exp.type = "BINARY_FUNCTION";
-        }
-        return exp;
     }
+
+    // if this is a subquery
+    match = SUB_QUERY_EXPRESSION_PATTERN.exec(key);
+    if (match) {
+        const joinKey: string = match[1];
+        const filterKey: string = match[3];
+        const operator: string = match[2];
+        return new SubQueryExpression(joinKey, filterKey, value, operator);
+    }
+
+    // finally the default key / value expression
+    const exp = new SimpleExpression(key, value);
+
+    // special case for {"lastName%" : "Banks"}
+    // we recommend {"lastName LIKE" : "Banks%"}, but leave this for backwards compatibility.
+    if (key.match(/.+%$/)) {
+        exp.key = key.replace("%", "");
+        exp.operator = "STARTSWITH";
+        exp.type = "BINARY_FUNCTION";
+    }
+    return exp;
 };
 
 export class SimpleExpression implements Expression {

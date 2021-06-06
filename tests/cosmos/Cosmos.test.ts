@@ -88,6 +88,17 @@ describe("Cosmos Test", () => {
                 country: "Japan",
                 city: "Tokyo",
             },
+            tags: ["react", "java"],
+            skills: [
+                {
+                    id: "S001",
+                    name: "fishing",
+                },
+                {
+                    id: "S002",
+                    name: "hunting",
+                },
+            ],
         };
         const origin2 = {
             id: "user_upsert_id02",
@@ -97,6 +108,17 @@ describe("Cosmos Test", () => {
                 country: "Japan",
                 city: "Osaka",
             },
+            tags: ["react", "typescript"],
+            skills: [
+                {
+                    id: "S001",
+                    name: "fishing",
+                },
+                {
+                    id: "S003",
+                    name: "swimming",
+                },
+            ],
         };
         const origin3 = {
             id: "user_upsert_id03",
@@ -106,15 +128,17 @@ describe("Cosmos Test", () => {
                 country: "England",
                 city: "London",
             },
+            tags: ["java", "go"],
         };
 
         try {
+            // prepare data
             const upserted1 = await db.upsert(COLL_NAME, origin, "Users");
-            const upserted2 = await db.upsert(COLL_NAME, origin2, "Users");
-
+            await db.upsert(COLL_NAME, origin2, "Users");
             // a different partition
-            const upserted3 = await db.upsert(COLL_NAME, origin3, "Members");
+            await db.upsert(COLL_NAME, origin3, "Members");
 
+            //begin assertions
             expect(upserted1.id).toEqual(origin.id);
             expect(upserted1.firstName).toEqual(origin.firstName);
             expect(upserted1.lastName).toEqual(origin.lastName);
@@ -231,6 +255,55 @@ describe("Cosmos Test", () => {
                 expect(items[1]["id"]).toEqual(origin2.id);
                 expect(items[2]["id"]).toEqual(origin3.id);
                 expect(items[2]["_partition"]).toEqual("Members");
+            }
+
+            {
+                //ARRAY_CONTAINS_ANY
+                const items = await db.find(
+                    COLL_NAME,
+                    {
+                        filter: {
+                            "tags ARRAY_CONTAINS_ANY": "react",
+                        },
+                        sort: ["id", "ASC"],
+                    },
+                    "Users",
+                );
+
+                expect(items.length).toEqual(2);
+                expect(items[0]["id"]).toEqual(origin.id);
+                expect(items[1]["id"]).toEqual(origin2.id);
+            }
+            {
+                //ARRAY_CONTAINS_ALL
+                let items = await db.find(
+                    COLL_NAME,
+                    {
+                        filter: {
+                            "skills ARRAY_CONTAINS_ALL name": ["swimming", "hunting"],
+                        },
+                        sort: ["id", "ASC"],
+                    },
+                    "Users",
+                );
+
+                // nobody fit this condition
+                expect(items.length).toEqual(0);
+
+                items = await db.find(
+                    COLL_NAME,
+                    {
+                        filter: {
+                            "skills ARRAY_CONTAINS_ALL name": ["swimming", "fishing"],
+                        },
+                        sort: ["id", "ASC"],
+                    },
+                    "Users",
+                );
+
+                //origin2 fits
+                expect(items.length).toEqual(1);
+                expect(items[0]["id"]).toEqual(origin2.id);
             }
         } finally {
             await db.delete(COLL_NAME, origin.id, "Users");

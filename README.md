@@ -3,7 +3,7 @@
 node-cosmos is a client for Azure CosmosDB 's SQL API. Which is an opinionated library aimed at ease of creating REST API for CRUD and find.
 
 ## Background
-* Microsoft's official nodejs CosmosDB client is verbose to use
+* Microsoft's official nodejs CosmosDB client is verbose to use, especially when creating REST api to query/filter items.
 
 ## Disclaimer
 * This is an alpha version, and features are focused to CRUD and find at present.
@@ -121,6 +121,8 @@ const cond = {
     "age >=": 20, // see cosmosdb compare operators
     "desciption CONTAINS": "Project manager",// see cosmosdb CONTAINS
     "skill ARRAY_CONTAINS": "Java", // see cosmosdb ARRAY_CONTAINS
+    "tagIds ARRAY_CONTAINS_ANY": ["T001", "T002"], // field tagIds which is an array, contains any of ["T001", "T002"]. see cosmosdb EXISTS for details.
+    "tags ARRAY_CONTAINS_ALL name": ["Java", "React"], //field tags which is an array of Tag, who's name contains all of ["Java", "React"]. see cosmosdb EXISTS for details.
   },
   sort: ["lastName", "ASC"], //optional sort order
   offset: 0, //optional offset
@@ -130,7 +132,6 @@ const cond = {
 const users = await db.find("Collection1", cond, "Users");
 
 ```
-
 
 ### Cross-partition queries
 
