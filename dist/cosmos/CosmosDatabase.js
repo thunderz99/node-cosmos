@@ -27,6 +27,18 @@ const removeUnusedProps = (item) => {
     return item;
 };
 /**
+ * check if id is valid
+ * @param id
+ */
+const checkValidId = (id) => {
+    if (!id) {
+        throw new Error("id cannot be empty");
+    }
+    if (id.includes("\t") || id.includes("\n") || id.includes("\r")) {
+        throw new Error("id cannot contain \t or \n or \r");
+    }
+};
+/**
  * class represents a Cosmos Database
  */
 class CosmosDatabase {
@@ -67,6 +79,10 @@ class CosmosDatabase {
      */
     async create(coll, data, partition = coll) {
         const container = await this.getCollection(coll);
+        if (data.id) {
+            // if id is specified explictly, check if a valid one.
+            checkValidId(data.id);
+        }
         const _data = {};
         Object.assign(_data, data);
         Object.assign(_data, { [_partition]: partition });
@@ -131,6 +147,7 @@ class CosmosDatabase {
     async upsert(coll, data, partition = coll) {
         const container = await this.getCollection(coll);
         assert_1.assertIsDefined(data.id, "data.id");
+        checkValidId(data.id);
         const _data = {};
         Object.assign(_data, data);
         Object.assign(_data, { [_partition]: partition });
@@ -148,6 +165,7 @@ class CosmosDatabase {
     async update(coll, data, partition = coll) {
         const container = await this.getCollection(coll);
         assert_1.assertIsDefined(data.id, "data.id");
+        checkValidId(data.id);
         const item = container.item(data.id, partition);
         const { resource: toUpdate } = await item.read();
         assert_1.assertIsDefined(toUpdate, `toUpdate, ${coll}, ${data.id}, ${partition}`);

@@ -36,6 +36,28 @@ describe("Cosmos Test", () => {
         }
     });
 
+    it("invalid id should not be created or upserted", async () => {
+        const origin = {
+            id: "user_create_id01_\t_tab", // invalid id which contains tab
+            firstName: "Anony",
+            lastName: "Nobody",
+        };
+
+        try {
+            await db.create(COLL_NAME, origin, "Users");
+            fail("create should not succeed");
+        } catch (e) {
+            expect(e.message).toContain("id cannot contain");
+        }
+
+        try {
+            await db.upsert(COLL_NAME, origin, "Users");
+            fail("upsert should not succeed");
+        } catch (e) {
+            expect(e.message).toContain("id cannot contain");
+        }
+    });
+
     it("update items", async () => {
         const origin = {
             id: "user_update_id01",
