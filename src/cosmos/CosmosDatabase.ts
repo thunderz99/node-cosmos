@@ -51,6 +51,19 @@ const removeUnusedProps = (item: CosmosDocument) => {
 };
 
 /**
+ * check if id is valid
+ * @param id
+ */
+const checkValidId = (id: string) => {
+    if (!id) {
+        throw new Error("id cannot be empty");
+    }
+    if (id.includes("\t") || id.includes("\n") || id.includes("\r")) {
+        throw new Error("id cannot contain \t or \n or \r");
+    }
+};
+
+/**
  * class represents a Cosmos Database
  */
 export class CosmosDatabase {
@@ -101,6 +114,11 @@ export class CosmosDatabase {
         partition: string = coll,
     ): Promise<CosmosDocument> {
         const container = await this.getCollection(coll);
+
+        if (data.id) {
+            // if id is specified explictly, check if a valid one.
+            checkValidId(data.id);
+        }
 
         const _data = {};
         Object.assign(_data, data);
@@ -194,6 +212,7 @@ export class CosmosDatabase {
     ): Promise<CosmosDocument> {
         const container = await this.getCollection(coll);
         assertIsDefined(data.id, "data.id");
+        checkValidId(data.id);
 
         const _data = {};
         Object.assign(_data, data);
@@ -221,6 +240,8 @@ export class CosmosDatabase {
         const container = await this.getCollection(coll);
 
         assertIsDefined(data.id, "data.id");
+        checkValidId(data.id);
+
         const item = container.item(data.id, partition);
         const { resource: toUpdate } = await item.read<CosmosDocument>();
         assertIsDefined(toUpdate, `toUpdate, ${coll}, ${data.id}, ${partition}`);
