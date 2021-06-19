@@ -5,10 +5,12 @@ exports.SimpleExpression = exports.parse = void 0;
  * class and interfaces represents WHERE expressions. e.g. count > 10, lastName != "Banks", CONTAINS(lastName, "an").
  */
 const Condition_1 = require("./Condition");
+const SubQueryExpression_1 = require("./SubQueryExpression");
 const EXPRESSION_PATTERN = /(.+)\s(STARTSWITH|ENDSWITH|CONTAINS|ARRAY_CONTAINS|LIKE|=|!=|<|<=|>|>=)\s*$/;
+const SUB_QUERY_EXPRESSION_PATTERN = /(.+)\s(ARRAY_CONTAINS_ANY|ARRAY_CONTAINS_ALL)\s*(.*)$/;
 const BINARY_OPERATOR_PATTERN = /^\s*(LIKE|IN|=|!=|<|<=|>|>=)\s*$/;
 exports.parse = (key, value) => {
-    const match = EXPRESSION_PATTERN.exec(key);
+    let match = EXPRESSION_PATTERN.exec(key);
     // if filter contains expression
     if (match) {
         // "count >": 10, get "count" part
@@ -21,17 +23,24 @@ exports.parse = (key, value) => {
             : "BINARY_FUNCTION";
         return exp;
     }
-    else {
-        const exp = new SimpleExpression(key, value);
-        // special case for {"lastName%" : "Banks"}
-        // we recommend {"lastName LIKE" : "%Banks"}, but leave this for backwards compatibility.
-        if (key.match(/.+%$/)) {
-            exp.key = key.replace("%", "");
-            exp.operator = "STARTSWITH";
-            exp.type = "BINARY_FUNCTION";
-        }
-        return exp;
+    // if this is a subquery
+    match = SUB_QUERY_EXPRESSION_PATTERN.exec(key);
+    if (match) {
+        const joinKey = match[1];
+        const filterKey = match[3];
+        const operator = match[2];
+        return new SubQueryExpression_1.SubQueryExpression(joinKey, filterKey, value, operator);
     }
+    // finally the default key / value expression
+    const exp = new SimpleExpression(key, value);
+    // special case for {"lastName%" : "Banks"}
+    // we recommend {"lastName LIKE" : "Banks%"}, but leave this for backwards compatibility.
+    if (key.match(/.+%$/)) {
+        exp.key = key.replace("%", "");
+        exp.operator = "STARTSWITH";
+        exp.type = "BINARY_FUNCTION";
+    }
+    return exp;
 };
 class SimpleExpression {
     constructor(key, value) {

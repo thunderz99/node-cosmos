@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports._formatKey = exports._flatten = exports._generateFilter = exports.toQuerySpec = exports.isJsonObject = exports.DEFAULT_LIMIT = void 0;
+const assert_1 = require("../../util/assert");
 const Expression_1 = require("./Expression");
 /**
  * Default find limit to protect db. override this by setting condition.limit explicitly.
@@ -106,15 +107,23 @@ exports._flatten = (obj, result = {}, keys = []) => {
 };
 /**
  * Instead of c.key, return c["key"] or c["key1"]["key2"] for query. In order for cosmosdb reserved words
- * @param key
+ *
+ * @param key filter's key
+ * @param collectionAlias default to "c", can be "x" when using subquerys for EXISTS or JOIN
+ * @return formatted filter's key c["key1"]["key2"]
  */
-exports._formatKey = (key) => {
+exports._formatKey = (key, collectionAlias = "r") => {
+    assert_1.assertNotEmpty(collectionAlias, "collectionAlias");
+    if (!key) {
+        // return collectionAlias when key is empty
+        return collectionAlias;
+    }
     return key
         .split(".")
         .reduce((r, f) => {
         r.push(`["${f}"]`);
         return r;
-    }, ["r"])
+    }, [collectionAlias])
         .join("");
 };
 //# sourceMappingURL=Condition.js.map
