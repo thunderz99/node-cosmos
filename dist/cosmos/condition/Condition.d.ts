@@ -28,12 +28,13 @@ export declare const isJsonObject: (json: Json | undefined) => json is JsonObjec
  * @param condition
  */
 export declare const toQuerySpec: (condition: Condition, countOnly?: boolean | undefined) => SqlQuerySpec;
+export declare type Param = {
+    name: string;
+    value: Json;
+};
 export declare type FilterResult = {
     queries: string[];
-    params: {
-        name: string;
-        value: Json;
-    }[];
+    params: Param[];
 };
 /**
  * generate query text and params for filter part.
@@ -52,7 +53,10 @@ export declare const _generateFilter: (_filter: JsonObject | undefined) => Filte
 export declare const _flatten: (obj?: JsonObject | undefined, result?: JsonObject, keys?: string[]) => JsonObject;
 /**
  * Instead of c.key, return c["key"] or c["key1"]["key2"] for query. In order for cosmosdb reserved words
- * @param key
+ *
+ * @param key filter's key
+ * @param collectionAlias default to "c", can be "x" when using subquerys for EXISTS or JOIN
+ * @return formatted filter's key c["key1"]["key2"]
  */
-export declare const _formatKey: (key: string) => string;
+export declare const _formatKey: (key: string, collectionAlias?: string) => string;
 //# sourceMappingURL=Condition.d.ts.map
