@@ -23,12 +23,43 @@ describe("Condition Test", () => {
                 location: ["New York", "Paris"], // location is 'New York' or 'Paris'
             });
 
-            expect(queries.join(" AND ")).toEqual(
-                'r["id"] = @id AND STARTSWITH(r["lastName"], @lastName) AND ARRAY_CONTAINS(@location, r["location"])',
-            );
-            expect(params[0]).toStrictEqual({ name: "@id", value: "id010" });
-            expect(params[1]).toStrictEqual({ name: "@lastName", value: "Ban" });
-            expect(params[2]).toStrictEqual({ name: "@location", value: ["New York", "Paris"] });
+            expect(queries[0]).toMatch(/r\["id"\] = @id_(\d)*/);
+            expect(queries[1]).toMatch(/STARTSWITH\(r\["lastName"\], @lastName_(\d)\)*/);
+            expect(queries[2]).toMatch(/ARRAY_CONTAINS\(@location_(\d)*, r\["location"\]\)/);
+
+            expect(params[0]).toMatchObject({
+                name: /@id_(\d)*/,
+                value: "id010",
+            });
+            expect(params[1]).toMatchObject({
+                name: /@lastName_(\d)*/,
+                value: "Ban",
+            });
+
+            expect(params[2]).toMatchObject({
+                name: /@location_(\d)*/,
+                value: ["New York", "Paris"],
+            });
+        }
+
+        {
+            // filters with duplicate keys
+            const { queries, params } = _generateFilter({
+                "number >=": 60,
+                "number <": 90,
+            });
+
+            expect(queries[0]).toMatch(/r\["number"\] >= @number_(\d)*/);
+            expect(queries[1]).toMatch(/r\["number"\] < @number_(\d)*/);
+
+            expect(params[0]).toMatchObject({
+                name: /@number_(\d)*/,
+                value: 60,
+            });
+            expect(params[1]).toMatchObject({
+                name: /@number_(\d)*/,
+                value: 90,
+            });
         }
 
         {
@@ -39,12 +70,23 @@ describe("Condition Test", () => {
                 "location ARRAY_CONTAINS": "New York", // location array contains 'New York'
             });
 
-            expect(queries.join(" AND ")).toEqual(
-                'r["id"] != @id AND CONTAINS(r["lastName"], @lastName) AND ARRAY_CONTAINS(r["location"], @location)',
-            );
-            expect(params[0]).toStrictEqual({ name: "@id", value: "id010" });
-            expect(params[1]).toStrictEqual({ name: "@lastName", value: "Ban" });
-            expect(params[2]).toStrictEqual({ name: "@location", value: "New York" });
+            expect(queries[0]).toMatch(/r\["id"\] != @id_(\d)*/);
+            expect(queries[1]).toMatch(/CONTAINS\(r\["lastName"\], @lastName_(\d)\)*/);
+            expect(queries[2]).toMatch(/ARRAY_CONTAINS\(r\["location"\], @location_(\d)*\)/);
+
+            expect(params[0]).toMatchObject({
+                name: /@id_(\d)*/,
+                value: "id010",
+            });
+            expect(params[1]).toMatchObject({
+                name: /@lastName_(\d)*/,
+                value: "Ban",
+            });
+
+            expect(params[2]).toMatchObject({
+                name: /@location_(\d)*/,
+                value: "New York",
+            });
         }
     });
 

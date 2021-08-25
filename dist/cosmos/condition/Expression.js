@@ -49,9 +49,12 @@ class SimpleExpression {
         this.key = key;
         this.value = value;
     }
+    generateSuffix() {
+        return new Date().getTime().toString();
+    }
     toFilterResult() {
         const result = { queries: [], params: [] };
-        const paramName = `@${this.key.replace(/[.%]/g, "__")}`;
+        const paramName = `@${this.key.replace(/[.%]/g, "__")}_${this.generateSuffix()}`;
         const k = Condition_1._formatKey(this.key);
         const v = this.value;
         if (Array.isArray(v)) {
@@ -67,6 +70,8 @@ class SimpleExpression {
             }
         }
         result.params.push({ name: paramName, value: v });
+        // queries: `root["ShipDate"] >= @ShipDate_xxx`
+        // params: { name: "@ShipDate_xxx", value: "2019-01-01"}
         return result;
     }
 }

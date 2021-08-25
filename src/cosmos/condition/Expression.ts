@@ -64,10 +64,14 @@ export class SimpleExpression implements Expression {
         this.value = value;
     }
 
+    generateSuffix(): string {
+        return new Date().getTime().toString();
+    }
+
     public toFilterResult(): FilterResult {
         const result: FilterResult = { queries: [], params: [] };
 
-        const paramName = `@${this.key.replace(/[.%]/g, "__")}`;
+        const paramName = `@${this.key.replace(/[.%]/g, "__")}_${this.generateSuffix()}`;
 
         const k = _formatKey(this.key);
         const v = this.value;

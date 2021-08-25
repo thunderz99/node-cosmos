@@ -12,6 +12,7 @@ export declare class SimpleExpression implements Expression {
     type: "BINARY_OPERATOR" | "BINARY_FUNCTION";
     operator: string;
     constructor(key: string, value: Json);
+    generateSuffix(): string;
     toFilterResult(): FilterResult;
 }
 //# sourceMappingURL=Expression.d.ts.map
