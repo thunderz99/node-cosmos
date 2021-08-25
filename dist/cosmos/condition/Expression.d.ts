@@ -1,6 +1,3 @@
-/**
- * class and interfaces represents WHERE expressions. e.g. count > 10, lastName != "Banks", CONTAINS(lastName, "an").
- */
 import { FilterResult, Json } from "./Condition";
 export interface Expression {
     toFilterResult: () => FilterResult;

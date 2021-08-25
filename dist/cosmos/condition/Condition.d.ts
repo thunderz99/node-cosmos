@@ -38,6 +38,9 @@ export declare type FilterResult = {
 };
 /**
  * generate query text and params for filter part.
+ *
+ * e.g. {"count >": 10} -> {queries: ["count > @count_xxx"], params: [{name: "@count_xxx", value: 10}]}
+ *
  * @param _filter
  */
 export declare const _generateFilter: (_filter: JsonObject | undefined) => FilterResult;
