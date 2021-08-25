@@ -320,9 +320,7 @@ export class CosmosDatabase {
     public async count(coll: string, condition: Condition, partition?: string): Promise<number> {
         const container = await this.getCollection(coll);
 
-        const partitionKey = partition || coll;
-
-        //TODO support cross partition query
+        const partitionKey = partition;
         const options: FeedOptions = { partitionKey };
 
         const querySpec = toQuerySpec(condition, true);

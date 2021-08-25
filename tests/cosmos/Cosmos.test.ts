@@ -79,7 +79,7 @@ describe("Cosmos Test", () => {
         }
     });
 
-    it("upsert and find items", async () => {
+    it("upsert, find and count items", async () => {
         const origin = {
             id: "user_upsert_id01",
             firstName: "Anony",
@@ -233,6 +233,38 @@ describe("Cosmos Test", () => {
                     "Users",
                 );
                 expect(count).toEqual(1);
+            }
+
+            {
+                //count should ignore offset and limit
+                const count = await db.count(
+                    COLL_NAME,
+                    {
+                        filter: {},
+                        sort: ["firstName", "ASC"],
+                        offset: 0,
+                        limit: 1,
+                    },
+                    "Users",
+                );
+                expect(count).toEqual(2);
+            }
+
+            {
+                //count cross partition
+                const count = await db.count(
+                    COLL_NAME,
+                    {
+                        filter: {
+                            "id LIKE": "user_upsert_id0%",
+                        },
+                        sort: ["id", "ASC"],
+                        offset: 0,
+                        limit: 1,
+                    },
+                    undefined, // set the partition to undefined
+                );
+                expect(count).toEqual(3);
             }
 
             {
