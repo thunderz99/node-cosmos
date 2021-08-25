@@ -1,9 +1,13 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SimpleExpression = exports.parse = void 0;
 /**
  * class and interfaces represents WHERE expressions. e.g. count > 10, lastName != "Banks", CONTAINS(lastName, "an").
  */
+const randomstring_1 = __importDefault(require("randomstring"));
 const Condition_1 = require("./Condition");
 const SubQueryExpression_1 = require("./SubQueryExpression");
 const EXPRESSION_PATTERN = /(.+)\s(STARTSWITH|ENDSWITH|CONTAINS|ARRAY_CONTAINS|LIKE|=|!=|<|<=|>|>=)\s*$/;
@@ -50,7 +54,7 @@ class SimpleExpression {
         this.value = value;
     }
     generateSuffix() {
-        return new Date().getTime().toString();
+        return randomstring_1.default.generate(7);
     }
     toFilterResult() {
         const result = { queries: [], params: [] };
@@ -70,8 +74,6 @@ class SimpleExpression {
             }
         }
         result.params.push({ name: paramName, value: v });
-        // queries: `root["ShipDate"] >= @ShipDate_xxx`
-        // params: { name: "@ShipDate_xxx", value: "2019-01-01"}
         return result;
     }
 }
