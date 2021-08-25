@@ -1,6 +1,7 @@
 /**
  * class and interfaces represents WHERE expressions. e.g. count > 10, lastName != "Banks", CONTAINS(lastName, "an").
  */
+import randomstring from "randomstring";
 import { FilterResult, Json, _formatKey } from "./Condition";
 
 import { SubQueryExpression } from "./SubQueryExpression";
@@ -64,10 +65,14 @@ export class SimpleExpression implements Expression {
         this.value = value;
     }
 
+    generateSuffix(): string {
+        return randomstring.generate(7);
+    }
+
     public toFilterResult(): FilterResult {
         const result: FilterResult = { queries: [], params: [] };
 
-        const paramName = `@${this.key.replace(/[.%]/g, "__")}`;
+        const paramName = `@${this.key.replace(/[.%]/g, "__")}_${this.generateSuffix()}`;
 
         const k = _formatKey(this.key);
         const v = this.value;
