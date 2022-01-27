@@ -170,3 +170,13 @@ const result = await db.find("Collection1", cond, undefined);
 const result = await db.find("Collection1", cond);
 
 ```
+
+### SQL-like syntax queries
+
+```typescript
+const items = await db.findBySQL(
+                    "Collection1",
+                    "SELECT c.address.country, COUNT(1) AS count FROM c GROUP BY c.address.country",
+                    "Users",
+                );
+```

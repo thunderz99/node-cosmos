@@ -218,6 +218,17 @@ describe("Cosmos Test", () => {
             }
 
             {
+                // findBySQL using group by
+                const items = await db.findBySQL(
+                    COLL_NAME,
+                    "SELECT c.address.country, COUNT(1) AS count FROM c GROUP BY c.address.country",
+                    "Users",
+                );
+                expect(items.length).toEqual(1);
+                expect(items[0]["count"]).toEqual(2);
+            }
+
+            {
                 //count
                 const count = await db.count(
                     COLL_NAME,
