@@ -50,9 +50,6 @@ exports.toQuerySpec = (condition, countOnly) => {
         const LIMIT = limit !== undefined ? ` LIMIT ${limit}` : "";
         queryText = queryText + OFFSET + LIMIT;
     }
-    // query: root["ShipDate"] >= @ShipDate_xxx AND root["ShipDate"] <= @ShipDate_yyy
-    // queries: [`root["ShipDate"] >= @ShipDate_xxx`, `root["ShipDate"] <= @ShipDate_yyy`]
-    // params: { "@ShipDate_xxx": "2019-01-01", "@ShipDate_yyy": "2019-01-02" }
     const querySpec = {
         query: queryText,
         parameters: params,
@@ -62,6 +59,9 @@ exports.toQuerySpec = (condition, countOnly) => {
 };
 /**
  * generate query text and params for filter part.
+ *
+ * e.g. {"count >": 10} -> {queries: ["count > @count_xxx"], params: [{name: "@count_xxx", value: 10}]}
+ *
  * @param _filter
  */
 exports._generateFilter = (_filter) => {
@@ -80,8 +80,6 @@ exports._generateFilter = (_filter) => {
         queries = queries.concat(expQueries);
         params = params.concat(expParams);
     });
-    // queries: [`root["ShipDate"] >= @ShipDate_xxx`, `root["ShipDate"] <= @ShipDate_yyy`]
-    // params: [{ name: "@ShipDate_xxx", value: "2019-01-01"}, { name: "@ShipDate_yyy", value: "2019-01-02" }]
     return { queries, params };
 };
 /**

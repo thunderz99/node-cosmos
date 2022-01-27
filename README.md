@@ -2,6 +2,10 @@
 
 node-cosmos is a client for Azure CosmosDB 's SQL API. Which is an opinionated library aimed at ease of creating REST API for CRUD and find.
 
+[![Node.js CI](https://github.com/thunderz99/node-cosmos/actions/workflows/node.js.yml/badge.svg)](https://github.com/thunderz99/node-cosmos/actions/workflows/node.js.yml)
+
+
+
 ## Background
 * Microsoft's official nodejs CosmosDB client is verbose to use, especially when creating REST api to query/filter items.
 
