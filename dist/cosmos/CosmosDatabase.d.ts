@@ -83,6 +83,15 @@ export declare class CosmosDatabase {
      */
     find(coll: string, condition: Condition, partition?: string): Promise<CosmosDocument[]>;
     /**
+     * find data by SQL
+     * using SQL-like syntax
+     * https://github.com/Azure/azure-sdk-for-js/blob/main/sdk/cosmosdb/cosmos/README.md#query-the-database
+     * @param coll
+     * @param query
+     * @param partition
+     */
+    findBySQL(coll: string, query: string, partition?: string): Promise<CosmosDocument[]>;
+    /**
      * count data by condition
      *
      * @param coll
