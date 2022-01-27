@@ -311,6 +311,35 @@ export class CosmosDatabase {
     }
 
     /**
+     * find data by SQL
+     * using SQL-like syntax
+     * https://github.com/Azure/azure-sdk-for-js/blob/main/sdk/cosmosdb/cosmos/README.md#query-the-database
+     * @param coll
+     * @param query
+     * @param partition
+     */
+    public async findBySQL(
+        coll: string,
+        query: string,
+        partition?: string,
+    ): Promise<CosmosDocument[]> {
+        const container = await this.getCollection(coll);
+
+        const partitionKey = partition;
+
+        const options: FeedOptions = { partitionKey };
+
+        const iter = await executeWithRetry<QueryIterator<CosmosDocument>>(async () =>
+            container.items.query(query, options),
+        );
+
+        const response = await iter.fetchAll();
+        const ret = response.resources || [];
+
+        return ret.map((item) => removeUnusedProps(item));
+    }
+
+    /**
      * count data by condition
      *
      * @param coll

@@ -83,6 +83,14 @@ export declare class CosmosDatabase {
      */
     find(coll: string, condition: Condition, partition?: string): Promise<CosmosDocument[]>;
     /**
+     * find data by raw sql
+     *
+     * @param coll
+     * @param query
+     * @param partition
+     */
+    findBySQL(coll: string, query: string, partition?: string): Promise<CosmosDocument[]>;
+    /**
      * count data by condition
      *
      * @param coll

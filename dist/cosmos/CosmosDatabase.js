@@ -217,6 +217,22 @@ class CosmosDatabase {
         return ret.map((item) => removeUnusedProps(item));
     }
     /**
+     * find data by raw sql
+     *
+     * @param coll
+     * @param query
+     * @param partition
+     */
+    async findBySQL(coll, query, partition) {
+        const container = await this.getCollection(coll);
+        const partitionKey = partition;
+        const options = { partitionKey };
+        const iter = await RetryUtil_1.executeWithRetry(async () => container.items.query(query, options));
+        const response = await iter.fetchAll();
+        const ret = response.resources || [];
+        return ret.map((item) => removeUnusedProps(item));
+    }
+    /**
      * count data by condition
      *
      * @param coll
