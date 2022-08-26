@@ -86,7 +86,7 @@ export const toQuerySpec = (condition: Condition, countOnly?: boolean): SqlQuery
         parameters: params,
     };
 
-    console.info("querySpec:", querySpec);
+    console.info("querySpec:", JSON.stringify(querySpec));
 
     return querySpec;
 };

@@ -43,8 +43,9 @@ export class Cosmos {
         assertNotEmpty(key);
         this.client = new CosmosClient({ endpoint, key });
 
-        console.info(`cosmos endpoint: ${endpoint}`);
-        console.info(`cosmos key: ${key.substring(0, 3)}...`);
+        console.info(`
+        cosmos endpoint: ${endpoint}
+        cosmos key: ${key.substring(0, 3)}...`);
     }
 
     public async getDatabase(db: string): Promise<CosmosDatabase> {

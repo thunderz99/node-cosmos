@@ -53,7 +53,7 @@ exports.toQuerySpec = function (condition, countOnly) {
         query: queryText,
         parameters: params
     };
-    console.info("querySpec:", querySpec);
+    console.info("querySpec:", JSON.stringify(querySpec));
     return querySpec;
 };
 /**
