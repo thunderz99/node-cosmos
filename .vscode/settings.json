@@ -4,5 +4,6 @@
     },
     "editor.detectIndentation": false,
     "editor.tabSize": 4,
-    "editor.formatOnSave": true
+    "editor.formatOnSave": true,
+    "cSpell.words": ["Zhang"]
 }
