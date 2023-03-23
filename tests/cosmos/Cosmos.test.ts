@@ -14,6 +14,13 @@ describe("Cosmos Test", () => {
         await db.createCollection(COLL_NAME);
     });
 
+    it("collection should be created and deleted", async () => {
+        //test
+        const col1 = await db.createCollection("deleteTest");
+        const result = await col1.delete();
+        expect(result.statusCode).toBeLessThan(300);
+    });
+
     it("create and read items", async () => {
         const origin = {
             id: "user_create_id01",

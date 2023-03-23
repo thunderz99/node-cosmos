@@ -1,6 +1,7 @@
 import { Condition, toQuerySpec } from "./condition/Condition";
 import {
     Container,
+    ContainerResponse,
     CosmosClient,
     Database,
     ErrorResponse,
@@ -86,6 +87,16 @@ export class CosmosDatabase {
         const conf = { id: coll, partitionKey, defaultTtl: -1 };
         const { container } = await database.containers.createIfNotExists(conf);
         return container;
+    }
+
+    /**
+     * Delete a collection if exists(nothing will be done if not exist)
+     * @param coll
+     */
+    public async deleteCollection(coll: string): Promise<ContainerResponse> {
+        const { database } = this;
+        const container = database.container(coll);
+        return await container.delete();
     }
 
     /**

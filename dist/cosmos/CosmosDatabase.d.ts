@@ -1,5 +1,5 @@
 import { Condition } from "./condition/Condition";
-import { Container, CosmosClient, Database, ErrorResponse, ItemDefinition } from "@azure/cosmos";
+import { Container, ContainerResponse, CosmosClient, Database, ErrorResponse, ItemDefinition } from "@azure/cosmos";
 export declare type CosmosDocument = ItemDefinition;
 export declare type CosmosId = {
     id: string;
@@ -23,6 +23,11 @@ export declare class CosmosDatabase {
      * @param coll
      */
     createCollection(coll: string): Promise<Container>;
+    /**
+     * Delete a collection if exists(nothing will be done if not exist)
+     * @param coll
+     */
+    deleteCollection(coll: string): Promise<ContainerResponse>;
     /**
      *
      * @param coll

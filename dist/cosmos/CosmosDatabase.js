@@ -59,6 +59,15 @@ class CosmosDatabase {
         return container;
     }
     /**
+     * Delete a collection if exists(nothing will be done if not exist)
+     * @param coll
+     */
+    async deleteCollection(coll) {
+        const { database } = this;
+        const container = database.container(coll);
+        return await container.delete();
+    }
+    /**
      *
      * @param coll
      */
