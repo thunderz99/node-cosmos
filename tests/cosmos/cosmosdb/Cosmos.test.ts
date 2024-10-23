@@ -1,5 +1,5 @@
-import { Cosmos } from "../../src/cosmos/Cosmos";
-import { CosmosDatabase } from "../../src/";
+import { CosmosDatabase } from "../../../src";
+import { CosmosImpl } from "../../../src/cosmos/impl/cosmosdb/CosmosImpl";
 import dotenv from "dotenv";
 
 dotenv.config(); // .envをprocess.envに割当て
@@ -10,7 +10,7 @@ const COLL_NAME = "UnitTestNode";
 
 describe("Cosmos Test", () => {
     beforeAll(async () => {
-        db = await new Cosmos(process.env.COSMOSDB_CONNECTION_STRING).getDatabase("CosmosDB");
+        db = await new CosmosImpl(process.env.COSMOSDB_CONNECTION_STRING).getDatabase("CosmosDB");
         await db.createCollection(COLL_NAME);
     });
 
@@ -396,7 +396,6 @@ describe("Cosmos Test", () => {
             expect(user).toBeNull();
         } catch (err) {
             fail("should not throw exception");
-        } finally {
         }
     });
 });

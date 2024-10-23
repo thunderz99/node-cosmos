@@ -1,18 +1,6 @@
-import { Condition, toQuerySpec } from "./condition/Condition";
-import {
-    Container,
-    CosmosClient,
-    Database,
-    ErrorResponse,
-    FeedOptions,
-    FeedResponse,
-    ItemDefinition,
-    ItemResponse,
-    QueryIterator,
-} from "@azure/cosmos";
+import { Container, ErrorResponse, ItemDefinition } from "@azure/cosmos";
 
-import { assertIsDefined } from "../util/assert";
-import { executeWithRetry } from "../util/RetryUtil";
+import { Condition } from "./condition/Condition";
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
 export type CosmosDocument = ItemDefinition;
@@ -35,335 +23,121 @@ export class CosmosError implements ErrorResponse {
     }
 }
 
-const _partition = "_partition"; // Partition KeyName
+export const _partition = "_partition"; // Partition KeyName
 
 /**
- * Remove unused cosmosdb system properties(e.g. _self / _rid / _attachments)
- * @param item
+ * interface represents a Cosmos/Mongo Database
  */
-const removeUnusedProps = (item: CosmosDocument) => {
-    if (item) {
-        Object.keys(item)
-            .filter((k) => k.startsWith("_") && k !== "_ts" && k !== _partition && k !== "_etag")
-            .forEach((k) => delete item[k]);
-    }
-    return item;
-};
-
-/**
- * check if id is valid
- * @param id
- */
-const checkValidId = (id: string) => {
-    if (!id) {
-        throw new Error("id cannot be empty");
-    }
-    if (id.includes("\t") || id.includes("\n") || id.includes("\r")) {
-        throw new Error("id cannot contain \t or \n or \r");
-    }
-};
-
-/**
- * class represents a Cosmos Database
- */
-export class CosmosDatabase {
-    private client: CosmosClient;
-    private database: Database;
-    private collectionMap: Map<string, Container> = new Map();
-
-    constructor(client: CosmosClient, database: Database) {
-        this.client = client;
-        this.database = database;
-    }
-
+export interface CosmosDatabase {
     /**
-     * Create a collection if not exists
-     * @param coll
-     */
-    public async createCollection(coll: string): Promise<Container> {
-        const { database } = this;
-        const partitionKey = "/" + _partition;
-        const conf = { id: coll, partitionKey, defaultTtl: -1 };
-        const { container } = await database.containers.createIfNotExists(conf);
-        return container;
-    }
-
-    /**
+     * Create a collection if it doesn't exist.
      *
-     * @param coll
+     * @param coll - The name of the collection to create.
+     * @returns A promise that resolves to the created or existing container.
      */
-    public async getCollection(coll: string): Promise<Container> {
-        const { collectionMap } = this;
-        let collection = collectionMap.get(coll);
-        if (!collection) {
-            collection = await this.createCollection(coll);
-            collectionMap.set(coll, collection);
-        }
-        return collection;
-    }
+    createCollection(coll: string): Promise<Container>;
 
     /**
-     * Create an item.
-     * @param coll
-     * @param data
-     * @param partition
-     */
-    public async create(
-        coll: string,
-        data: CosmosDocument,
-        partition: string = coll,
-    ): Promise<CosmosDocument> {
-        const container = await this.getCollection(coll);
-
-        if (data.id) {
-            // if id is specified explictly, check if a valid one.
-            checkValidId(data.id);
-        }
-
-        const _data = {};
-        Object.assign(_data, data);
-        Object.assign(_data, { [_partition]: partition });
-
-        const { resource } = await executeWithRetry<ItemResponse<CosmosDocument>>(() =>
-            container.items.create(_data),
-        );
-        assertIsDefined(resource, `item, coll:${coll}, data:${data}, partition:${partition}`);
-        console.info(`created. coll:${coll}, resource:${resource.id}, partition:${partition}`);
-
-        return removeUnusedProps(resource);
-    }
-
-    /**
-     * Read an item. Throw DocumentClientException(404 NotFound) if object not exist
+     * Retrieve a collection from the database, or create it if it doesn't exist.
      *
-     * @param coll
-     * @param id
-     * @param partition
+     * @param coll - The name of the collection to retrieve or create.
+     * @returns A promise that resolves to the container.
      */
-    public async read(coll: string, id: string, partition: string = coll): Promise<CosmosDocument> {
-        const container = await this.getCollection(coll);
-
-        const item = container.item(id, partition);
-        const itemResponse = await executeWithRetry<ItemResponse<CosmosDocument>>(() =>
-            item.read<CosmosDocument>(),
-        );
-
-        const { statusCode, resource } = itemResponse;
-
-        if (statusCode === 404) {
-            throw new CosmosError(itemResponse);
-        }
-
-        assertIsDefined(resource);
-
-        return resource;
-    }
+    getCollection(coll: string): Promise<Container>;
 
     /**
-     * Read an item. return defaultValue if item not exist
+     * Create a new item in the specified collection.
      *
-     * @param coll
-     * @param id
-     * @param partition
-     * @param defaultValue defaultValue if item not exist
+     * @param coll - The name of the collection where the item will be created.
+     * @param data - The document data to be created.
+     * @param partition - Optional partition key. Defaults to collection name if not provided.
+     * @returns A promise that resolves to the created document.
      */
-    public async readOrDefault(
+    create(coll: string, data: CosmosDocument, partition?: string): Promise<CosmosDocument>;
+
+    /**
+     * Read an item from the specified collection. Throws an error if the item is not found.
+     *
+     * @param coll - The name of the collection.
+     * @param id - The ID of the item to read.
+     * @param partition - Optional partition key. Defaults to collection name if not provided.
+     * @returns A promise that resolves to the retrieved document.
+     */
+    read(coll: string, id: string, partition?: string): Promise<CosmosDocument>;
+
+    /**
+     * Read an item from the specified collection. Returns a default value if the item is not found.
+     *
+     * @param coll - The name of the collection.
+     * @param id - The ID of the item to read.
+     * @param partition - The partition key.
+     * @param defaultValue - The default value to return if the item does not exist.
+     * @returns A promise that resolves to the document or the default value.
+     */
+    readOrDefault(
         coll: string,
         id: string,
         partition: string,
         defaultValue: CosmosDocument | null,
-    ): Promise<CosmosDocument | null> {
-        const container = await this.getCollection(coll);
-
-        const item = container.item(id, partition);
-        try {
-            const itemResponse = await executeWithRetry<ItemResponse<CosmosDocument>>(() =>
-                item.read<CosmosDocument>(),
-            );
-
-            const { statusCode, resource } = itemResponse;
-
-            if (statusCode >= 400) {
-                throw new CosmosError(itemResponse);
-            }
-
-            assertIsDefined(resource);
-
-            return resource;
-        } catch (e) {
-            if (e.code === 404) {
-                return defaultValue;
-            } else {
-                throw e;
-            }
-        }
-    }
+    ): Promise<CosmosDocument | null>;
 
     /**
-     * Upsert an item. Insert will be performed if not exist. Do not support partial update.
-     * @param coll
-     * @param data
-     * @param partition
-     */
-    public async upsert(
-        coll: string,
-        data: CosmosDocument,
-        partition: string = coll,
-    ): Promise<CosmosDocument> {
-        const container = await this.getCollection(coll);
-        assertIsDefined(data.id, "data.id");
-        checkValidId(data.id);
-
-        const _data = {};
-        Object.assign(_data, data);
-        Object.assign(_data, { [_partition]: partition });
-
-        const { resource } = await executeWithRetry<ItemResponse<CosmosDocument>>(() =>
-            container.items.upsert(_data),
-        );
-        assertIsDefined(resource, `item, coll:${coll}, id:${data.id}, partition:${partition}`);
-        console.info(`upserted. coll:${coll}, id:${data.id}, partition:${partition}`);
-        return removeUnusedProps(resource);
-    }
-
-    /**
-     * Update an item. Supports partial update. Error will be throw if not exist.
-     * @param coll
-     * @param data
-     * @param partition
-     */
-    public async update(
-        coll: string,
-        data: CosmosDocument,
-        partition: string = coll,
-    ): Promise<CosmosDocument> {
-        const container = await this.getCollection(coll);
-
-        assertIsDefined(data.id, "data.id");
-        checkValidId(data.id);
-
-        const item = container.item(data.id, partition);
-        const { resource: toUpdate } = await item.read<CosmosDocument>();
-        assertIsDefined(toUpdate, `toUpdate, ${coll}, ${data.id}, ${partition}`);
-        Object.assign(toUpdate, data);
-
-        const { resource: updated } = await executeWithRetry<ItemResponse<CosmosDocument>>(() =>
-            item.replace(toUpdate),
-        );
-        assertIsDefined(updated, `item, coll:${coll}, id:${data.id}, partition:${partition}`);
-        console.info(`updated. coll:${coll}, id:${data.id}, partition:${partition}`);
-        return removeUnusedProps(updated);
-    }
-
-    /**
-     * Delete an item. Return {id} if exist. Otherwise return undefined.
+     * Upsert (update or insert) an item into the specified collection. If the item does not exist, it will be created.
      *
-     * @param coll
-     * @param id
-     * @param partition
+     * @param coll - The name of the collection.
+     * @param data - The document data to upsert.
+     * @param partition - Optional partition key. Defaults to collection name if not provided.
+     * @returns A promise that resolves to the upserted document.
      */
-    public async delete(coll: string, id: string, partition: string = coll): Promise<CosmosId> {
-        const container = await this.getCollection(coll);
-
-        const item = container.item(id, partition);
-
-        try {
-            await executeWithRetry<ItemResponse<ItemDefinition>>(() => item.delete());
-            console.info(`deleted coll:${coll}, id:${id}, partition:${partition}`);
-            return { id };
-        } catch (e) {
-            if (e.code === 404) {
-                return undefined;
-            } else {
-                throw e;
-            }
-        }
-    }
+    upsert(coll: string, data: CosmosDocument, partition?: string): Promise<CosmosDocument>;
 
     /**
-     * find data by condition
+     * Update an existing item in the specified collection. Throws an error if the item does not exist.
      *
-     * @param coll
-     * @param condition
-     * @param partition
+     * @param coll - The name of the collection.
+     * @param data - The document data to update.
+     * @param partition - Optional partition key. Defaults to collection name if not provided.
+     * @returns A promise that resolves to the updated document.
      */
-    public async find(
-        coll: string,
-        condition: Condition,
-        partition?: string,
-    ): Promise<CosmosDocument[]> {
-        const container = await this.getCollection(coll);
-
-        const partitionKey = partition;
-
-        const options: FeedOptions = { partitionKey };
-
-        const querySpec = toQuerySpec(condition);
-
-        const iter = await executeWithRetry<QueryIterator<CosmosDocument>>(async () =>
-            container.items.query(querySpec, options),
-        );
-
-        const response = await iter.fetchAll();
-        const ret = response.resources || [];
-
-        return ret.map((item) => removeUnusedProps(item));
-    }
+    update(coll: string, data: CosmosDocument, partition?: string): Promise<CosmosDocument>;
 
     /**
-     * find data by SQL
-     * using SQL-like syntax
-     * https://github.com/Azure/azure-sdk-for-js/blob/main/sdk/cosmosdb/cosmos/README.md#query-the-database
-     * @param coll
-     * @param query
-     * @param partition
-     */
-    public async findBySQL(
-        coll: string,
-        query: string,
-        partition?: string,
-    ): Promise<CosmosDocument[]> {
-        const container = await this.getCollection(coll);
-
-        const partitionKey = partition;
-
-        const options: FeedOptions = { partitionKey };
-
-        const iter = await executeWithRetry<QueryIterator<CosmosDocument>>(async () =>
-            container.items.query(query, options),
-        );
-
-        const response = await iter.fetchAll();
-        const ret = response.resources || [];
-
-        return ret.map((item) => removeUnusedProps(item));
-    }
-
-    /**
-     * count data by condition
+     * Delete an item from the specified collection. Returns the item's ID if it exists, otherwise returns undefined.
      *
-     * @param coll
-     * @param condition
-     * @param partition
+     * @param coll - The name of the collection.
+     * @param id - The ID of the item to delete.
+     * @param partition - Optional partition key. Defaults to collection name if not provided.
+     * @returns A promise that resolves to the ID of the deleted item or undefined if not found.
      */
-    public async count(coll: string, condition: Condition, partition?: string): Promise<number> {
-        const container = await this.getCollection(coll);
+    delete(coll: string, id: string, partition?: string): Promise<CosmosId>;
 
-        const partitionKey = partition;
-        const options: FeedOptions = { partitionKey };
+    /**
+     * Find items in the specified collection that match the provided condition.
+     *
+     * @param coll - The name of the collection.
+     * @param condition - The query condition to apply.
+     * @param partition - Optional partition key.
+     * @returns A promise that resolves to an array of matching documents.
+     */
+    find(coll: string, condition: Condition, partition?: string): Promise<CosmosDocument[]>;
 
-        const querySpec = toQuerySpec(condition, true);
+    /**
+     * Find items in the specified collection using a SQL-like query.
+     *
+     * @param coll - The name of the collection.
+     * @param query - The SQL-like query string.
+     * @param partition - Optional partition key.
+     * @returns A promise that resolves to an array of matching documents.
+     */
+    findBySQL(coll: string, query: string, partition?: string): Promise<CosmosDocument[]>;
 
-        const iter = await executeWithRetry<QueryIterator<CosmosDocument>>(async () =>
-            container.items.query(querySpec, options),
-        );
-
-        const res = await executeWithRetry<FeedResponse<CosmosDocument>>(async () =>
-            iter.fetchNext(),
-        );
-
-        const [{ $1: total }] = res.resources;
-
-        return total;
-    }
+    /**
+     * Count the number of items in the specified collection that match the provided condition.
+     *
+     * @param coll - The name of the collection.
+     * @param condition - The query condition to apply.
+     * @param partition - Optional partition key.
+     * @returns A promise that resolves to the number of matching documents.
+     */
+    count(coll: string, condition: Condition, partition?: string): Promise<number>;
 }
