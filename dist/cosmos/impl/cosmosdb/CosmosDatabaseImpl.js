@@ -1,19 +1,13 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.CosmosDatabaseImpl = exports.CosmosError = void 0;
+exports.CosmosDatabaseImpl = void 0;
 const Condition_1 = require("../../condition/Condition");
+const CosmosDatabase_1 = require("../../CosmosDatabase");
+const CosmosContainer_1 = require("../../CosmosContainer");
 const assert_1 = require("../../../util/assert");
 const RetryUtil_1 = require("../../../util/RetryUtil");
-class CosmosError {
-    constructor(errorResponse) {
-        this.name = "CosmosError";
-        Object.assign(this, errorResponse);
-        this.message = errorResponse.message || "";
-        this.code = errorResponse.code || errorResponse.statusCode;
-    }
-}
-exports.CosmosError = CosmosError;
 const _partition = "_partition"; // Partition KeyName
+const reservedFields = new Set(["_ts", "_partition", "_etag"]);
 /**
  * Remove unused cosmosdb system properties(e.g. _self / _rid / _attachments)
  * @param item
@@ -21,7 +15,7 @@ const _partition = "_partition"; // Partition KeyName
 const removeUnusedProps = (item) => {
     if (item) {
         Object.keys(item)
-            .filter((k) => k.startsWith("_") && k !== "_ts" && k !== _partition && k !== "_etag")
+            .filter((k) => k.startsWith("_") && !reservedFields.has(k))
             .forEach((k) => delete item[k]);
     }
     return item;
@@ -56,7 +50,15 @@ class CosmosDatabaseImpl {
         const partitionKey = "/" + _partition;
         const conf = { id: coll, partitionKey, defaultTtl: -1 };
         const { container } = await database.containers.createIfNotExists(conf);
-        return container;
+        return new CosmosContainer_1.CosmosContainer(coll, container);
+    }
+    /**
+     * Delete a collection if exists
+     * @param coll
+     */
+    async deleteCollection(coll) {
+        const { database } = this;
+        await database.container(coll).delete();
     }
     /**
      *
@@ -86,8 +88,9 @@ class CosmosDatabaseImpl {
         const _data = {};
         Object.assign(_data, data);
         Object.assign(_data, { [_partition]: partition });
-        const { resource } = await RetryUtil_1.executeWithRetry(() => container.items.create(_data));
-        assert_1.assertIsDefined(resource, `item, coll:${coll}, data:${JSON.stringify(data)}, partition:${partition}`);
+        const containerInstance = container.container;
+        const { resource } = await (0, RetryUtil_1.executeWithRetry)(() => containerInstance.items.create(_data));
+        (0, assert_1.assertIsDefined)(resource, `item, coll:${coll}, data:${JSON.stringify(data)}, partition:${partition}`);
         console.info(`created. coll:${coll}, resource:${resource.id}, partition:${partition}`);
         return removeUnusedProps(resource);
     }
@@ -100,13 +103,14 @@ class CosmosDatabaseImpl {
      */
     async read(coll, id, partition = coll) {
         const container = await this.getCollection(coll);
-        const item = container.item(id, partition);
-        const itemResponse = await RetryUtil_1.executeWithRetry(() => item.read());
+        const containerInstance = container.container;
+        const item = containerInstance.item(id, partition);
+        const itemResponse = await (0, RetryUtil_1.executeWithRetry)(() => item.read());
         const { statusCode, resource } = itemResponse;
         if (statusCode === 404) {
-            throw new CosmosError(itemResponse);
+            throw new CosmosDatabase_1.CosmosError(itemResponse);
         }
-        assert_1.assertIsDefined(resource);
+        (0, assert_1.assertIsDefined)(resource);
         return resource;
     }
     /**
@@ -119,14 +123,15 @@ class CosmosDatabaseImpl {
      */
     async readOrDefault(coll, id, partition, defaultValue) {
         const container = await this.getCollection(coll);
-        const item = container.item(id, partition);
+        const containerInstance = container.container;
+        const item = containerInstance.item(id, partition);
         try {
-            const itemResponse = await RetryUtil_1.executeWithRetry(() => item.read());
+            const itemResponse = await (0, RetryUtil_1.executeWithRetry)(() => item.read());
             const { statusCode, resource } = itemResponse;
             if (statusCode >= 400) {
-                throw new CosmosError(itemResponse);
+                throw new CosmosDatabase_1.CosmosError(itemResponse);
             }
-            assert_1.assertIsDefined(resource);
+            (0, assert_1.assertIsDefined)(resource);
             return resource;
         }
         catch (e) {
@@ -145,14 +150,15 @@ class CosmosDatabaseImpl {
      * @param partition
      */
     async upsert(coll, data, partition = coll) {
-        const container = await this.getCollection(coll);
-        assert_1.assertIsDefined(data.id, "data.id");
+        (0, assert_1.assertIsDefined)(data.id, "data.id");
         checkValidId(data.id);
+        const container = await this.getCollection(coll);
+        const containerInstance = container.container;
         const _data = {};
         Object.assign(_data, data);
         Object.assign(_data, { [_partition]: partition });
-        const { resource } = await RetryUtil_1.executeWithRetry(() => container.items.upsert(_data));
-        assert_1.assertIsDefined(resource, `item, coll:${coll}, id:${data.id}, partition:${partition}`);
+        const { resource } = await (0, RetryUtil_1.executeWithRetry)(() => containerInstance.items.upsert(_data));
+        (0, assert_1.assertIsDefined)(resource, `item, coll:${coll}, id:${data.id}, partition:${partition}`);
         console.info(`upserted. coll:${coll}, id:${data.id}, partition:${partition}`);
         return removeUnusedProps(resource);
     }
@@ -163,15 +169,16 @@ class CosmosDatabaseImpl {
      * @param partition
      */
     async update(coll, data, partition = coll) {
-        const container = await this.getCollection(coll);
-        assert_1.assertIsDefined(data.id, "data.id");
+        (0, assert_1.assertIsDefined)(data.id, "data.id");
         checkValidId(data.id);
-        const item = container.item(data.id, partition);
+        const container = await this.getCollection(coll);
+        const containerInstance = container.container;
+        const item = containerInstance.item(data.id, partition);
         const { resource: toUpdate } = await item.read();
-        assert_1.assertIsDefined(toUpdate, `toUpdate, ${coll}, ${data.id}, ${partition}`);
+        (0, assert_1.assertIsDefined)(toUpdate, `toUpdate, ${coll}, ${data.id}, ${partition}`);
         Object.assign(toUpdate, data);
-        const { resource: updated } = await RetryUtil_1.executeWithRetry(() => item.replace(toUpdate));
-        assert_1.assertIsDefined(updated, `item, coll:${coll}, id:${data.id}, partition:${partition}`);
+        const { resource: updated } = await (0, RetryUtil_1.executeWithRetry)(() => item.replace(toUpdate));
+        (0, assert_1.assertIsDefined)(updated, `item, coll:${coll}, id:${data.id}, partition:${partition}`);
         console.info(`updated. coll:${coll}, id:${data.id}, partition:${partition}`);
         return removeUnusedProps(updated);
     }
@@ -184,9 +191,10 @@ class CosmosDatabaseImpl {
      */
     async delete(coll, id, partition = coll) {
         const container = await this.getCollection(coll);
-        const item = container.item(id, partition);
+        const containerInstance = container.container;
+        const item = containerInstance.item(id, partition);
         try {
-            await RetryUtil_1.executeWithRetry(() => item.delete());
+            await (0, RetryUtil_1.executeWithRetry)(() => item.delete());
             console.info(`deleted coll:${coll}, id:${id}, partition:${partition}`);
             return { id };
         }
@@ -208,10 +216,11 @@ class CosmosDatabaseImpl {
      */
     async find(coll, condition, partition) {
         const container = await this.getCollection(coll);
+        const containerInstance = container.container;
         const partitionKey = partition;
         const options = { partitionKey };
-        const querySpec = Condition_1.toQuerySpec(condition);
-        const iter = await RetryUtil_1.executeWithRetry(async () => container.items.query(querySpec, options));
+        const querySpec = (0, Condition_1.toQuerySpec)(condition);
+        const iter = await (0, RetryUtil_1.executeWithRetry)(async () => containerInstance.items.query(querySpec, options));
         const response = await iter.fetchAll();
         const ret = response.resources || [];
         return ret.map((item) => removeUnusedProps(item));
@@ -226,9 +235,10 @@ class CosmosDatabaseImpl {
      */
     async findBySQL(coll, query, partition) {
         const container = await this.getCollection(coll);
+        const containerInstance = container.container;
         const partitionKey = partition;
         const options = { partitionKey };
-        const iter = await RetryUtil_1.executeWithRetry(async () => container.items.query(query, options));
+        const iter = await (0, RetryUtil_1.executeWithRetry)(async () => containerInstance.items.query(query, options));
         const response = await iter.fetchAll();
         const ret = response.resources || [];
         return ret.map((item) => removeUnusedProps(item));
@@ -242,11 +252,12 @@ class CosmosDatabaseImpl {
      */
     async count(coll, condition, partition) {
         const container = await this.getCollection(coll);
+        const containerInstance = container.container;
         const partitionKey = partition;
         const options = { partitionKey };
-        const querySpec = Condition_1.toQuerySpec(condition, true);
-        const iter = await RetryUtil_1.executeWithRetry(async () => container.items.query(querySpec, options));
-        const res = await RetryUtil_1.executeWithRetry(async () => iter.fetchNext());
+        const querySpec = (0, Condition_1.toQuerySpec)(condition, true);
+        const iter = await (0, RetryUtil_1.executeWithRetry)(async () => containerInstance.items.query(querySpec, options));
+        const res = await (0, RetryUtil_1.executeWithRetry)(async () => iter.fetchNext());
         const [{ $1: total }] = res.resources;
         return total;
     }

@@ -25,7 +25,7 @@ const split = (connectionString: string) => {
  * class that represent a cosmos account
  *
  * Usage:
- * const cosmos = new Cosmos("AccountEndpoint=https://xxx.documents.azure.com:443/;AccountKey=xxx==;")
+ * const cosmos = new CosmosImpl("AccountEndpoint=https://xxx.documents.azure.com:443/;AccountKey=xxx==;")
  * const db = cosmos.getDatabase("Database1")
  *
  * //Then use db to do CRUD / query

@@ -1,19 +1,11 @@
 import { Condition } from "../../condition/Condition";
-import { Container, CosmosClient, Database, ErrorResponse, ItemDefinition } from "@azure/cosmos";
-export declare type CosmosDocument = ItemDefinition;
-export declare type CosmosId = {
-    id: string;
-} | undefined;
-export declare class CosmosError implements ErrorResponse {
-    name: string;
-    message: string;
-    code: number;
-    constructor(errorResponse: Partial<ErrorResponse>);
-}
+import { CosmosClient, Database } from "@azure/cosmos";
+import { CosmosDatabase, CosmosDocument, CosmosId } from "../../CosmosDatabase";
+import { CosmosContainer } from "../../CosmosContainer";
 /**
  * class represents a Cosmos Database
  */
-export declare class CosmosDatabaseImpl {
+export declare class CosmosDatabaseImpl implements CosmosDatabase {
     private readonly client;
     private readonly database;
     private readonly collectionMap;
@@ -22,12 +14,17 @@ export declare class CosmosDatabaseImpl {
      * Create a collection if not exists
      * @param coll
      */
-    createCollection(coll: string): Promise<Container>;
+    createCollection(coll: string): Promise<CosmosContainer>;
+    /**
+     * Delete a collection if exists
+     * @param coll
+     */
+    deleteCollection(coll: string): Promise<void>;
     /**
      *
      * @param coll
      */
-    getCollection(coll: string): Promise<Container>;
+    getCollection(coll: string): Promise<CosmosContainer>;
     /**
      * Create an item.
      * @param coll

@@ -1,5 +1,6 @@
 import { Cosmos } from "./Cosmos";
 import { CosmosImpl } from "./impl/cosmosdb/CosmosImpl";
+import { MongoImpl } from "./impl/mongodb/MongoImpl";
 import assert from "assert";
 
 /**
@@ -18,7 +19,16 @@ export class CosmosBuilder {
 
     private dbType: string = CosmosBuilder.COSMOSDB;
     private connectionString: string | undefined;
+
+    /**
+     * Whether to auto generate _expireAtEnabled json field is ttl field is present. Used for compatibility for CosmosDB
+     *
+     */
     private expireAtEnabled = false;
+
+    /**
+     * Whether to auto generate _etag json field when created/updated. Used for compatibility for CosmosDB
+     */
     private etagEnabled = false;
 
     /**
@@ -27,8 +37,8 @@ export class CosmosBuilder {
      * @param dbType
      * @return cosmosBuilder
      */
-    withDatabaseType(dbType: string): this {
-        this.dbType = dbType;
+    withDatabaseType(dbType: string | undefined): this {
+        this.dbType = dbType || CosmosBuilder.COSMOSDB;
         return this;
     }
 
@@ -38,7 +48,7 @@ export class CosmosBuilder {
      * @param connectionString
      * @return cosmosBuilder
      */
-    withConnectionString(connectionString: string): this {
+    withConnectionString(connectionString: string | undefined): this {
         this.connectionString = connectionString;
         return this;
     }
@@ -82,9 +92,11 @@ export class CosmosBuilder {
         }
 
         if (this.dbType === CosmosBuilder.MONGODB) {
-            // TODO Mongo
-            return new CosmosImpl(this.connectionString);
-            //return new MongoImpl(this.connectionString!, this.expireAtEnabled, this.etagEnabled);
+            return new MongoImpl(
+                this.connectionString || "",
+                this.expireAtEnabled,
+                this.etagEnabled,
+            );
         }
 
         throw new Error(`Not supported dbType: ${this.dbType}`);

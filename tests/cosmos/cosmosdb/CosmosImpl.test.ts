@@ -1,14 +1,24 @@
 import { CosmosDatabase } from "../../../src";
 import { CosmosImpl } from "../../../src/cosmos/impl/cosmosdb/CosmosImpl";
 import dotenv from "dotenv";
+import randomstring from "randomstring";
 
-dotenv.config(); // .envをprocess.envに割当て
+dotenv.config(); // load .env file to process.env
 
 let db: CosmosDatabase;
 
-const COLL_NAME = "UnitTestNode";
+const COLL_NAME = "UnitTestNode" + randomstring.generate(7);
 
-describe("Cosmos Test", () => {
+/**
+ * Type guard for error
+ * @param e error
+ * @returns error instance
+ */
+function isError(e: unknown): e is Error {
+    return e instanceof Error;
+}
+
+describe("CosmosImpl Test", () => {
     beforeAll(async () => {
         db = await new CosmosImpl(process.env.COSMOSDB_CONNECTION_STRING).getDatabase("CosmosDB");
         await db.createCollection(COLL_NAME);
@@ -16,7 +26,7 @@ describe("Cosmos Test", () => {
 
     it("create and read items", async () => {
         const origin = {
-            id: "user_create_id01",
+            id: "user_create_id01" + randomstring.generate(7),
             firstName: "Anony",
             lastName: "Nobody",
         };
@@ -47,14 +57,18 @@ describe("Cosmos Test", () => {
             await db.create(COLL_NAME, origin, "Users");
             fail("create should not succeed");
         } catch (e) {
-            expect(e.message).toContain("id cannot contain");
+            if (isError(e)) {
+                expect(e.message).toContain("id cannot contain");
+            }
         }
 
         try {
             await db.upsert(COLL_NAME, origin, "Users");
             fail("upsert should not succeed");
         } catch (e) {
-            expect(e.message).toContain("id cannot contain");
+            if (isError(e)) {
+                expect(e.message).toContain("id cannot contain");
+            }
         }
     });
 

@@ -5,5 +5,17 @@
     "editor.detectIndentation": false,
     "editor.tabSize": 4,
     "editor.formatOnSave": true,
-    "cSpell.words": ["Anony", "saka", "upserted", "Zhang"]
+    "cSpell.words": ["Anony", "randomstring", "Retryable", "saka", "upserted", "Zhang"],
+    "cSpell.ignorePaths": [
+        "package.json",
+        "**/.gitlab-ci.yml",
+        "**/package-lock.json",
+        "**/yarn.lock",
+        "**/node_modules/**",
+        "**/vscode-extension/**",
+        "**/.git/objects/**",
+        ".vscode",
+        ".vscode-insiders"
+    ],
+    "npm.packageManager": "yarn"
 }

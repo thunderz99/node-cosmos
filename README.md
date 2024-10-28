@@ -19,7 +19,9 @@ node-cosmos is a client for Azure CosmosDB 's SQL API. Which is an opinionated l
 ```typescript
 import { Cosmos } from "node-cosmos"
 
-const db = await new Cosmos("YOUR_CONNECTION_STRING").getDatabase("my-awesome-db");
+const db = await new CosmosBuilder()
+  .withConnectionString("YOUR_CONNECTION_STRING").build()
+  .getDatabase("my-awesome-db");
 
 await db.upsert("my-awesome-coll", { id:"id011", firstName: "Anony", lastName: "Nobody"} );
 

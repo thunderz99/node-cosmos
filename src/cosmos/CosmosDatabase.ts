@@ -1,6 +1,7 @@
-import { Container, ErrorResponse, ItemDefinition } from "@azure/cosmos";
+import { ErrorResponse, ItemDefinition } from "@azure/cosmos";
 
 import { Condition } from "./condition/Condition";
+import { CosmosContainer } from "./CosmosContainer";
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
 export type CosmosDocument = ItemDefinition;
@@ -35,7 +36,15 @@ export interface CosmosDatabase {
      * @param coll - The name of the collection to create.
      * @returns A promise that resolves to the created or existing container.
      */
-    createCollection(coll: string): Promise<Container>;
+    createCollection(coll: string): Promise<CosmosContainer>;
+
+    /**
+     * Delete a collection(If not exist, do nothing).
+     *
+     * @param coll - The name of the collection to delete.
+     * @returns A promise that resolves when the collection has been deleted.
+     */
+    deleteCollection(coll: string): Promise<void>;
 
     /**
      * Retrieve a collection from the database, or create it if it doesn't exist.
@@ -43,7 +52,7 @@ export interface CosmosDatabase {
      * @param coll - The name of the collection to retrieve or create.
      * @returns A promise that resolves to the container.
      */
-    getCollection(coll: string): Promise<Container>;
+    getCollection(coll: string): Promise<CosmosContainer>;
 
     /**
      * Create a new item in the specified collection.

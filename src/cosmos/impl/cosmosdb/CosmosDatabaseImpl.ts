@@ -3,39 +3,21 @@ import {
     Container,
     CosmosClient,
     Database,
-    ErrorResponse,
     FeedOptions,
     FeedResponse,
     ItemDefinition,
     ItemResponse,
     QueryIterator,
 } from "@azure/cosmos";
+import { CosmosDatabase, CosmosDocument, CosmosError, CosmosId } from "../../CosmosDatabase";
 
+import { CosmosContainer } from "../../CosmosContainer";
 import { assertIsDefined } from "../../../util/assert";
 import { executeWithRetry } from "../../../util/RetryUtil";
 
-// eslint-disable-next-line @typescript-eslint/no-empty-interface
-export type CosmosDocument = ItemDefinition;
-
-export type CosmosId =
-    | {
-          id: string;
-      }
-    | undefined;
-
-export class CosmosError implements ErrorResponse {
-    name = "CosmosError";
-    message: string;
-    code: number;
-
-    constructor(errorResponse: Partial<ErrorResponse>) {
-        Object.assign(this, errorResponse);
-        this.message = errorResponse.message || "";
-        this.code = errorResponse.code || errorResponse.statusCode;
-    }
-}
-
 const _partition = "_partition"; // Partition KeyName
+
+const reservedFields = new Set(["_ts", "_partition", "_etag"]);
 
 /**
  * Remove unused cosmosdb system properties(e.g. _self / _rid / _attachments)
@@ -44,7 +26,7 @@ const _partition = "_partition"; // Partition KeyName
 const removeUnusedProps = (item: CosmosDocument) => {
     if (item) {
         Object.keys(item)
-            .filter((k) => k.startsWith("_") && k !== "_ts" && k !== _partition && k !== "_etag")
+            .filter((k) => k.startsWith("_") && !reservedFields.has(k))
             .forEach((k) => delete item[k]);
     }
     return item;
@@ -66,10 +48,10 @@ const checkValidId = (id: string) => {
 /**
  * class represents a Cosmos Database
  */
-export class CosmosDatabaseImpl {
+export class CosmosDatabaseImpl implements CosmosDatabase {
     private readonly client: CosmosClient;
     private readonly database: Database;
-    private readonly collectionMap: Map<string, Container> = new Map();
+    private readonly collectionMap: Map<string, CosmosContainer> = new Map();
 
     constructor(client: CosmosClient, database: Database) {
         this.client = client;
@@ -80,19 +62,28 @@ export class CosmosDatabaseImpl {
      * Create a collection if not exists
      * @param coll
      */
-    public async createCollection(coll: string): Promise<Container> {
+    public async createCollection(coll: string): Promise<CosmosContainer> {
         const { database } = this;
         const partitionKey = "/" + _partition;
         const conf = { id: coll, partitionKey, defaultTtl: -1 };
         const { container } = await database.containers.createIfNotExists(conf);
-        return container;
+        return new CosmosContainer(coll, container);
+    }
+
+    /**
+     * Delete a collection if exists
+     * @param coll
+     */
+    public async deleteCollection(coll: string): Promise<void> {
+        const { database } = this;
+        await database.container(coll).delete();
     }
 
     /**
      *
      * @param coll
      */
-    public async getCollection(coll: string): Promise<Container> {
+    public async getCollection(coll: string): Promise<CosmosContainer> {
         const { collectionMap } = this;
         let collection = collectionMap.get(coll);
         if (!collection) {
@@ -124,8 +115,10 @@ export class CosmosDatabaseImpl {
         Object.assign(_data, data);
         Object.assign(_data, { [_partition]: partition });
 
+        const containerInstance = container.container as Container;
+
         const { resource } = await executeWithRetry<ItemResponse<CosmosDocument>>(() =>
-            container.items.create(_data),
+            containerInstance.items.create(_data),
         );
         assertIsDefined(
             resource,
@@ -146,7 +139,9 @@ export class CosmosDatabaseImpl {
     public async read(coll: string, id: string, partition: string = coll): Promise<CosmosDocument> {
         const container = await this.getCollection(coll);
 
-        const item = container.item(id, partition);
+        const containerInstance = container.container as Container;
+
+        const item = containerInstance.item(id, partition);
         const itemResponse = await executeWithRetry<ItemResponse<CosmosDocument>>(() =>
             item.read<CosmosDocument>(),
         );
@@ -178,7 +173,9 @@ export class CosmosDatabaseImpl {
     ): Promise<CosmosDocument | null> {
         const container = await this.getCollection(coll);
 
-        const item = container.item(id, partition);
+        const containerInstance = container.container as Container;
+
+        const item = containerInstance.item(id, partition);
         try {
             const itemResponse = await executeWithRetry<ItemResponse<CosmosDocument>>(() =>
                 item.read<CosmosDocument>(),
@@ -213,16 +210,18 @@ export class CosmosDatabaseImpl {
         data: CosmosDocument,
         partition: string = coll,
     ): Promise<CosmosDocument> {
-        const container = await this.getCollection(coll);
         assertIsDefined(data.id, "data.id");
         checkValidId(data.id);
+
+        const container = await this.getCollection(coll);
+        const containerInstance = container.container as Container;
 
         const _data = {};
         Object.assign(_data, data);
         Object.assign(_data, { [_partition]: partition });
 
         const { resource } = await executeWithRetry<ItemResponse<CosmosDocument>>(() =>
-            container.items.upsert(_data),
+            containerInstance.items.upsert(_data),
         );
         assertIsDefined(resource, `item, coll:${coll}, id:${data.id}, partition:${partition}`);
         console.info(`upserted. coll:${coll}, id:${data.id}, partition:${partition}`);
@@ -240,12 +239,13 @@ export class CosmosDatabaseImpl {
         data: CosmosDocument,
         partition: string = coll,
     ): Promise<CosmosDocument> {
-        const container = await this.getCollection(coll);
-
         assertIsDefined(data.id, "data.id");
         checkValidId(data.id);
 
-        const item = container.item(data.id, partition);
+        const container = await this.getCollection(coll);
+        const containerInstance = container.container as Container;
+
+        const item = containerInstance.item(data.id, partition);
         const { resource: toUpdate } = await item.read<CosmosDocument>();
         assertIsDefined(toUpdate, `toUpdate, ${coll}, ${data.id}, ${partition}`);
         Object.assign(toUpdate, data);
@@ -267,8 +267,9 @@ export class CosmosDatabaseImpl {
      */
     public async delete(coll: string, id: string, partition: string = coll): Promise<CosmosId> {
         const container = await this.getCollection(coll);
+        const containerInstance = container.container as Container;
 
-        const item = container.item(id, partition);
+        const item = containerInstance.item(id, partition);
 
         try {
             await executeWithRetry<ItemResponse<ItemDefinition>>(() => item.delete());
@@ -296,6 +297,7 @@ export class CosmosDatabaseImpl {
         partition?: string,
     ): Promise<CosmosDocument[]> {
         const container = await this.getCollection(coll);
+        const containerInstance = container.container as Container;
 
         const partitionKey = partition;
 
@@ -304,7 +306,7 @@ export class CosmosDatabaseImpl {
         const querySpec = toQuerySpec(condition);
 
         const iter = await executeWithRetry<QueryIterator<CosmosDocument>>(async () =>
-            container.items.query(querySpec, options),
+            containerInstance.items.query(querySpec, options),
         );
 
         const response = await iter.fetchAll();
@@ -327,13 +329,14 @@ export class CosmosDatabaseImpl {
         partition?: string,
     ): Promise<CosmosDocument[]> {
         const container = await this.getCollection(coll);
+        const containerInstance = container.container as Container;
 
         const partitionKey = partition;
 
         const options: FeedOptions = { partitionKey };
 
         const iter = await executeWithRetry<QueryIterator<CosmosDocument>>(async () =>
-            container.items.query(query, options),
+            containerInstance.items.query(query, options),
         );
 
         const response = await iter.fetchAll();
@@ -351,6 +354,7 @@ export class CosmosDatabaseImpl {
      */
     public async count(coll: string, condition: Condition, partition?: string): Promise<number> {
         const container = await this.getCollection(coll);
+        const containerInstance = container.container as Container;
 
         const partitionKey = partition;
         const options: FeedOptions = { partitionKey };
@@ -358,7 +362,7 @@ export class CosmosDatabaseImpl {
         const querySpec = toQuerySpec(condition, true);
 
         const iter = await executeWithRetry<QueryIterator<CosmosDocument>>(async () =>
-            container.items.query(querySpec, options),
+            containerInstance.items.query(querySpec, options),
         );
 
         const res = await executeWithRetry<FeedResponse<CosmosDocument>>(async () =>

@@ -11,7 +11,7 @@ const CosmosDatabaseImpl_1 = require("./CosmosDatabaseImpl");
 const assert_2 = __importDefault(require("assert"));
 const split = (connectionString) => {
     const parts = /AccountEndpoint=(.+);AccountKey=(.+);/.exec(connectionString);
-    assert_2.default(parts, `connectionString should contain AccountEndpoint and AccountKey: ${connectionString}`);
+    (0, assert_2.default)(parts, `connectionString should contain AccountEndpoint and AccountKey: ${connectionString}`);
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [_, endpoint, key] = parts;
     return { endpoint, key };
@@ -20,7 +20,7 @@ const split = (connectionString) => {
  * class that represent a cosmos account
  *
  * Usage:
- * const cosmos = new Cosmos("AccountEndpoint=https://xxx.documents.azure.com:443/;AccountKey=xxx==;")
+ * const cosmos = new CosmosImpl("AccountEndpoint=https://xxx.documents.azure.com:443/;AccountKey=xxx==;")
  * const db = cosmos.getDatabase("Database1")
  *
  * //Then use db to do CRUD / query
@@ -30,10 +30,10 @@ const split = (connectionString) => {
 class CosmosImpl {
     constructor(connectionString) {
         this.databaseMap = new Map();
-        assert_1.assertIsDefined(connectionString, "connectionString");
+        (0, assert_1.assertIsDefined)(connectionString, "connectionString");
         const { endpoint, key } = split(connectionString);
-        assert_1.assertNotEmpty(endpoint);
-        assert_1.assertNotEmpty(key);
+        (0, assert_1.assertNotEmpty)(endpoint);
+        (0, assert_1.assertNotEmpty)(key);
         this.client = new cosmos_1.CosmosClient({ endpoint, key });
         console.info(`cosmos endpoint: ${endpoint}`);
         console.info(`cosmos key: ${key.substring(0, 3)}...`);
