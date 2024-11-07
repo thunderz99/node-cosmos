@@ -1,9 +1,21 @@
 {
     "editor.codeActionsOnSave": {
-        "source.fixAll.eslint": true
+        "source.fixAll.eslint": "explicit"
     },
     "editor.detectIndentation": false,
     "editor.tabSize": 4,
     "editor.formatOnSave": true,
-    "cSpell.words": ["Zhang"]
+    "cSpell.words": ["Anony", "randomstring", "Retryable", "saka", "upserted", "Zhang"],
+    "cSpell.ignorePaths": [
+        "package.json",
+        "**/.gitlab-ci.yml",
+        "**/package-lock.json",
+        "**/yarn.lock",
+        "**/node_modules/**",
+        "**/vscode-extension/**",
+        "**/.git/objects/**",
+        ".vscode",
+        ".vscode-insiders"
+    ],
+    "npm.packageManager": "yarn"
 }

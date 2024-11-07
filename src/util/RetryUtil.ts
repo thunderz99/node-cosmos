@@ -12,7 +12,7 @@ export async function executeWithRetry<T>(f: () => Promise<T>): Promise<T> {
             i++;
             return await f();
         } catch (e) {
-            if (e.code === 429) {
+            if (isRetryableError(e)) {
                 if (i > maxRetries) {
                     throw e;
                 }
@@ -24,4 +24,10 @@ export async function executeWithRetry<T>(f: () => Promise<T>): Promise<T> {
             }
         }
     }
+}
+
+function isRetryableError(
+    e: unknown,
+): e is { code: number; retryAfterInMilliseconds?: number; message?: string } {
+    return typeof e === "object" && e !== null && "code" in e && e.code === 429;
 }

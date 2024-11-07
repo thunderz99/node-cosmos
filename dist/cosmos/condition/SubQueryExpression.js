@@ -13,9 +13,10 @@ const ARRAY_CONTAINS_ALL = "ARRAY_CONTAINS_ALL";
  * @param paramName
  * @returns
  */
-exports._buildSimpleSubQuery = (joinKey, filterKey, paramName) => {
-    return `EXISTS(SELECT VALUE x FROM x IN ${Condition_1._formatKey(joinKey)} WHERE ${Condition_1._formatKey(filterKey, "x")} = ${paramName})`;
+const _buildSimpleSubQuery = (joinKey, filterKey, paramName) => {
+    return `EXISTS(SELECT VALUE x FROM x IN ${(0, Condition_1._formatKey)(joinKey)} WHERE ${(0, Condition_1._formatKey)(filterKey, "x")} = ${paramName})`;
 };
+exports._buildSimpleSubQuery = _buildSimpleSubQuery;
 /**
  * A helper function to generate c.items ARRAY_CONTAINS_ANY List.of(item1, item2) queryText
  *
@@ -32,26 +33,27 @@ exports._buildSimpleSubQuery = (joinKey, filterKey, paramName) => {
  *  and add paramsValue into params
  * </pre>
  */
-exports._buildArrayContainsAny = (joinKey, filterKey, paramName, paramValue) => {
-    assert_1.assertNotEmpty(joinKey, "joinKey");
-    assert_1.assertIsDefined(filterKey, "filterKey");
-    assert_1.assertNotEmpty(paramName, "paramName");
+const _buildArrayContainsAny = (joinKey, filterKey, paramName, paramValue) => {
+    (0, assert_1.assertNotEmpty)(joinKey, "joinKey");
+    (0, assert_1.assertIsDefined)(filterKey, "filterKey");
+    (0, assert_1.assertNotEmpty)(paramName, "paramName");
     const filterResult = { queries: [], params: [] };
     filterResult.params.push({ name: paramName, value: paramValue });
-    if (objects_1.isArray(paramValue)) {
+    if ((0, objects_1.isArray)(paramValue)) {
         //collection
-        filterResult.queries.push(` (EXISTS(SELECT VALUE x FROM x IN ${Condition_1._formatKey(joinKey)} WHERE ARRAY_CONTAINS(${paramName}, ${Condition_1._formatKey(filterKey, "x")})))`);
+        filterResult.queries.push(` (EXISTS(SELECT VALUE x FROM x IN ${(0, Condition_1._formatKey)(joinKey)} WHERE ARRAY_CONTAINS(${paramName}, ${(0, Condition_1._formatKey)(filterKey, "x")})))`);
     }
     else {
         //scalar
-        filterResult.queries.push(` (${exports._buildSimpleSubQuery(joinKey, filterKey, paramName)})`);
+        filterResult.queries.push(` (${(0, exports._buildSimpleSubQuery)(joinKey, filterKey, paramName)})`);
     }
     return filterResult;
 };
-exports._buildArrayContainsAll = (joinKey, filterKey, paramName, paramValue) => {
-    assert_1.assertNotEmpty(joinKey, "joinKey");
-    assert_1.assertIsDefined(filterKey, "filterKey");
-    assert_1.assertNotEmpty(paramName, "paramName");
+exports._buildArrayContainsAny = _buildArrayContainsAny;
+const _buildArrayContainsAll = (joinKey, filterKey, paramName, paramValue) => {
+    (0, assert_1.assertNotEmpty)(joinKey, "joinKey");
+    (0, assert_1.assertIsDefined)(filterKey, "filterKey");
+    (0, assert_1.assertNotEmpty)(paramName, "paramName");
     const filterResult = { queries: [], params: [] };
     if (Array.isArray(paramValue)) {
         let index = 0;
@@ -59,7 +61,7 @@ exports._buildArrayContainsAll = (joinKey, filterKey, paramName, paramValue) => 
         for (const value of paramValue) {
             const subParamName = `${paramName}__${index}`;
             filterResult.params.push({ name: subParamName, value });
-            subQueries.push(exports._buildSimpleSubQuery(joinKey, filterKey, subParamName));
+            subQueries.push((0, exports._buildSimpleSubQuery)(joinKey, filterKey, subParamName));
             index++;
         }
         // AND all subQueies
@@ -68,10 +70,11 @@ exports._buildArrayContainsAll = (joinKey, filterKey, paramName, paramValue) => 
     else {
         //scalar
         filterResult.params.push({ name: paramName, value: paramValue });
-        filterResult.queries.push(` (${exports._buildSimpleSubQuery(joinKey, filterKey, paramName)})`);
+        filterResult.queries.push(` (${(0, exports._buildSimpleSubQuery)(joinKey, filterKey, paramName)})`);
     }
     return filterResult;
 };
+exports._buildArrayContainsAll = _buildArrayContainsAll;
 class SubQueryExpression {
     constructor(joinKey, filterKey, value, operator = "=") {
         this.joinKey = joinKey;
@@ -85,10 +88,10 @@ class SubQueryExpression {
         const paramName = `@${key.replace(/[.%]/g, "__")}`;
         const value = this.value;
         if (ARRAY_CONTAINS_ALL === this.operator) {
-            return exports._buildArrayContainsAll(this.joinKey, this.filterKey, paramName, value);
+            return (0, exports._buildArrayContainsAll)(this.joinKey, this.filterKey, paramName, value);
         }
         if (ARRAY_CONTAINS_ANY === this.operator) {
-            return exports._buildArrayContainsAny(this.joinKey, this.filterKey, paramName, value);
+            return (0, exports._buildArrayContainsAny)(this.joinKey, this.filterKey, paramName, value);
         }
         // if operator does not match above ones, return empty result
         return { queries: [], params: [] };

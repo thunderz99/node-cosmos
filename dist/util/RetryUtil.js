@@ -15,13 +15,13 @@ async function executeWithRetry(f) {
             return await f();
         }
         catch (e) {
-            if (e.code === 429) {
+            if (isRetryableError(e)) {
                 if (i > maxRetries) {
                     throw e;
                 }
                 console.log(`[INFO] 429 Too Many Requests. Wait:${e.retryAfterInMilliseconds}`);
                 const wait = e.retryAfterInMilliseconds || 1000;
-                await wait_1.sleep(wait);
+                await (0, wait_1.sleep)(wait);
             }
             else {
                 throw e;
@@ -30,4 +30,7 @@ async function executeWithRetry(f) {
     }
 }
 exports.executeWithRetry = executeWithRetry;
+function isRetryableError(e) {
+    return typeof e === "object" && e !== null && "code" in e && e.code === 429;
+}
 //# sourceMappingURL=RetryUtil.js.map

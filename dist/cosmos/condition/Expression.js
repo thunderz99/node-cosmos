@@ -13,7 +13,7 @@ const SubQueryExpression_1 = require("./SubQueryExpression");
 const EXPRESSION_PATTERN = /(.+)\s(STARTSWITH|ENDSWITH|CONTAINS|ARRAY_CONTAINS|LIKE|=|!=|<|<=|>|>=)\s*$/;
 const SUB_QUERY_EXPRESSION_PATTERN = /(.+)\s(ARRAY_CONTAINS_ANY|ARRAY_CONTAINS_ALL)\s*(.*)$/;
 const BINARY_OPERATOR_PATTERN = /^\s*(LIKE|IN|=|!=|<|<=|>|>=)\s*$/;
-exports.parse = (key, value) => {
+const parse = (key, value) => {
     let match = EXPRESSION_PATTERN.exec(key);
     // if filter contains expression
     if (match) {
@@ -46,6 +46,7 @@ exports.parse = (key, value) => {
     }
     return exp;
 };
+exports.parse = parse;
 class SimpleExpression {
     constructor(key, value) {
         this.type = "BINARY_OPERATOR";
@@ -59,7 +60,7 @@ class SimpleExpression {
     toFilterResult() {
         const result = { queries: [], params: [] };
         const paramName = `@${this.key.replace(/[.%]/g, "__")}_${this.generateSuffix()}`;
-        const k = Condition_1._formatKey(this.key);
+        const k = (0, Condition_1._formatKey)(this.key);
         const v = this.value;
         if (Array.isArray(v)) {
             // ex. filter: '{"id":["ID001", "ID002"]}'

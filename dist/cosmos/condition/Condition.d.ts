@@ -1,6 +1,6 @@
 import { SqlQuerySpec } from "@azure/cosmos";
-export declare type Json = null | boolean | number | string | JsonArray | JsonObject;
-export declare type JsonArray = Array<Json>;
+export type Json = null | boolean | number | string | JsonArray | JsonObject;
+export type JsonArray = Array<Json>;
 export interface JsonObject {
     [key: string]: Json;
 }
@@ -27,12 +27,12 @@ export declare const isJsonObject: (json: Json | undefined) => json is JsonObjec
  * convert condition to a querySpec (SQL and params)
  * @param condition
  */
-export declare const toQuerySpec: (condition: Condition, countOnly?: boolean | undefined) => SqlQuerySpec;
-export declare type Param = {
+export declare const toQuerySpec: (condition: Condition, countOnly?: boolean) => SqlQuerySpec;
+export type Param = {
     name: string;
     value: Json;
 };
-export declare type FilterResult = {
+export type FilterResult = {
     queries: string[];
     params: Param[];
 };
@@ -53,7 +53,7 @@ export declare const _generateFilter: (_filter: JsonObject | undefined) => Filte
  * @param result
  * @param keys
  */
-export declare const _flatten: (obj?: JsonObject | undefined, result?: JsonObject, keys?: string[]) => JsonObject;
+export declare const _flatten: (obj?: JsonObject, result?: JsonObject, keys?: string[]) => JsonObject;
 /**
  * Instead of c.key, return c["key"] or c["key1"]["key2"] for query. In order for cosmosdb reserved words
  *
