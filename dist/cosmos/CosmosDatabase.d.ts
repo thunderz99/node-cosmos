@@ -1,7 +1,13 @@
-import { ErrorResponse, ItemDefinition } from "@azure/cosmos";
+import { ErrorResponse } from "@azure/cosmos";
 import { Condition } from "./condition/Condition";
 import { CosmosContainer } from "./CosmosContainer";
-export type CosmosDocument = ItemDefinition;
+export interface CosmosDocument {
+    /** The id of the item. User settable property. Uniquely identifies the item along with the partition key */
+    id?: string;
+    /** Time to live in seconds for collections with TTL enabled */
+    ttl?: number;
+    [key: string]: any;
+}
 export type CosmosId = {
     id: string;
 } | undefined;
@@ -9,7 +15,7 @@ export declare class CosmosError implements ErrorResponse {
     name: string;
     message: string;
     code: number;
-    constructor(errorResponse: Partial<ErrorResponse>);
+    constructor(errorResponse?: Partial<ErrorResponse>, code?: number, message?: string);
 }
 export declare const _partition = "_partition";
 /**

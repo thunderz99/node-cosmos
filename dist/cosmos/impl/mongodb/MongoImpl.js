@@ -44,15 +44,17 @@ class MongoImpl {
         const { client, databaseMap } = this;
         const database = databaseMap.get(db);
         if (database) {
+            console.info("database exist.");
             return database;
         }
+        console.info(`database not exist. create and connect. this.connected: ${this.connected}`);
         if (!this.connected) {
             await this.client.connect();
             this.connected = true;
             console.info("mongo client connected");
         }
-        const dbResource = await this.createDatabaseIfNotExist(db);
-        const newDatabase = new MongoDatabaseImpl_1.MongoDatabaseImpl(client, dbResource);
+        await this.createDatabaseIfNotExist(db);
+        const newDatabase = new MongoDatabaseImpl_1.MongoDatabaseImpl(client, this);
         const ret = newDatabase;
         databaseMap.set(db, ret);
         return ret;
@@ -75,6 +77,20 @@ class MongoImpl {
         await db.createCollection(collectionName);
         console.info(`Database "${dbName}" created with collection "${collectionName}".`);
         return db;
+    }
+    /**
+     * Get expireAtEnabled
+     * @returns expireAtEnabled in boolean
+     */
+    getExpireAtEnabled() {
+        return this.expireAtEnabled;
+    }
+    /**
+     * Get etagEnabled
+     * @returns etagEnabled in boolean
+     */
+    getEtagEnabled() {
+        return this.etagEnabled;
     }
 }
 exports.MongoImpl = MongoImpl;

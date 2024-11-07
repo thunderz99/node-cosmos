@@ -38,5 +38,15 @@ export declare class MongoImpl implements Cosmos {
     getDatabase(db: string): Promise<CosmosDatabase>;
     deleteDatabase(db: string): Promise<void>;
     createDatabaseIfNotExist(dbName: string): Promise<Db>;
+    /**
+     * Get expireAtEnabled
+     * @returns expireAtEnabled in boolean
+     */
+    getExpireAtEnabled(): boolean;
+    /**
+     * Get etagEnabled
+     * @returns etagEnabled in boolean
+     */
+    getEtagEnabled(): boolean;
 }
 //# sourceMappingURL=MongoImpl.d.ts.map

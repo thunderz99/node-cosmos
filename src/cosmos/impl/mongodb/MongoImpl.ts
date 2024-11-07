@@ -61,8 +61,11 @@ export class MongoImpl implements Cosmos {
 
         const database = databaseMap.get(db);
         if (database) {
+            console.info("database exist.");
             return database;
         }
+
+        console.info(`database not exist. create and connect. this.connected: ${this.connected}`);
 
         if (!this.connected) {
             await this.client.connect();
@@ -70,8 +73,8 @@ export class MongoImpl implements Cosmos {
             console.info("mongo client connected");
         }
 
-        const dbResource = await this.createDatabaseIfNotExist(db);
-        const newDatabase = new MongoDatabaseImpl(client, dbResource);
+        await this.createDatabaseIfNotExist(db);
+        const newDatabase = new MongoDatabaseImpl(client, this);
 
         const ret = (newDatabase as unknown) as CosmosDatabase;
         databaseMap.set(db, ret);
@@ -101,5 +104,21 @@ export class MongoImpl implements Cosmos {
         console.info(`Database "${dbName}" created with collection "${collectionName}".`);
 
         return db;
+    }
+
+    /**
+     * Get expireAtEnabled
+     * @returns expireAtEnabled in boolean
+     */
+    public getExpireAtEnabled(): boolean {
+        return this.expireAtEnabled;
+    }
+
+    /**
+     * Get etagEnabled
+     * @returns etagEnabled in boolean
+     */
+    public getEtagEnabled(): boolean {
+        return this.etagEnabled;
     }
 }
