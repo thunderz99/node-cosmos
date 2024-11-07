@@ -182,7 +182,7 @@ describe("CosmosImpl Test", () => {
             }
 
             {
-                //find using = and CONTAINS
+                //find using CONTAINS
                 const items = await db.find(
                     COLL_NAME,
                     {

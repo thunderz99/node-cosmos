@@ -5,7 +5,16 @@
     "editor.detectIndentation": false,
     "editor.tabSize": 4,
     "editor.formatOnSave": true,
-    "cSpell.words": ["Anony", "randomstring", "Retryable", "saka", "upserted", "Zhang"],
+    "cSpell.words": [
+        "Anony",
+        "Bson",
+        "randomstring",
+        "Retryable",
+        "saka",
+        "upserted",
+        "uuidv",
+        "Zhang"
+    ],
     "cSpell.ignorePaths": [
         "package.json",
         "**/.gitlab-ci.yml",

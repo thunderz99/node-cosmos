@@ -25,11 +25,11 @@ export declare class MongoImpl implements Cosmos {
      * Whether to auto generate _expireAtEnabled json field is ttl field is present. Used for compatibility for CosmosDB
      *
      */
-    private expireAtEnabled;
+    private readonly expireAtEnabled;
     /**
      * Whether to auto generate _etag json field when created/updated. Used for compatibility for CosmosDB
      */
-    private etagEnabled;
+    private readonly etagEnabled;
     /**
      * A flag in memory to represent whether the native mongo client is connected to mongodb
      */
@@ -37,6 +37,17 @@ export declare class MongoImpl implements Cosmos {
     constructor(connectionString: string | undefined, expireAtEnabled?: boolean, etagEnabled?: boolean);
     getDatabase(db: string): Promise<CosmosDatabase>;
     deleteDatabase(db: string): Promise<void>;
-    createDatabaseIfNotExist(dbName: string): Promise<Db>;
+    _createDatabaseIfNotExist(dbName: string): Promise<Db>;
+    close(): Promise<void>;
+    /**
+     * Get expireAtEnabled
+     * @returns expireAtEnabled in boolean
+     */
+    getExpireAtEnabled(): boolean;
+    /**
+     * Get etagEnabled
+     * @returns etagEnabled in boolean
+     */
+    getEtagEnabled(): boolean;
 }
 //# sourceMappingURL=MongoImpl.d.ts.map

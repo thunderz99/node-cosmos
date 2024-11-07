@@ -4,7 +4,14 @@ import { Condition } from "./condition/Condition";
 import { CosmosContainer } from "./CosmosContainer";
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
-export type CosmosDocument = ItemDefinition;
+export interface CosmosDocument {
+    /** The id of the item. User settable property. Uniquely identifies the item along with the partition key */
+    id?: string;
+    /** Time to live in seconds for collections with TTL enabled */
+    ttl?: number;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    [key: string]: any;
+}
 
 export type CosmosId =
     | {
@@ -17,10 +24,16 @@ export class CosmosError implements ErrorResponse {
     message: string;
     code: number;
 
-    constructor(errorResponse: Partial<ErrorResponse>) {
-        Object.assign(this, errorResponse);
-        this.message = errorResponse.message || "";
-        this.code = errorResponse.code || errorResponse.statusCode;
+    constructor(
+        errorResponse?: Partial<ErrorResponse>,
+        code: number = errorResponse?.code || errorResponse?.statusCode,
+        message: string = errorResponse?.message || "",
+    ) {
+        if (errorResponse) {
+            Object.assign(this, errorResponse);
+        }
+        this.code = code;
+        this.message = message;
     }
 }
 

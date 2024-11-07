@@ -3,18 +3,18 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.SimpleExpression = exports.parse = void 0;
+exports.SimpleExpression = exports.parse = exports.SUB_QUERY_EXPRESSION_PATTERN = exports.EXPRESSION_PATTERN = void 0;
+const Condition_1 = require("./Condition");
+const SubQueryExpression_1 = require("./SubQueryExpression");
 /**
  * class and interfaces represents WHERE expressions. e.g. count > 10, lastName != "Banks", CONTAINS(lastName, "an").
  */
 const randomstring_1 = __importDefault(require("randomstring"));
-const Condition_1 = require("./Condition");
-const SubQueryExpression_1 = require("./SubQueryExpression");
-const EXPRESSION_PATTERN = /(.+)\s(STARTSWITH|ENDSWITH|CONTAINS|ARRAY_CONTAINS|LIKE|=|!=|<|<=|>|>=)\s*$/;
-const SUB_QUERY_EXPRESSION_PATTERN = /(.+)\s(ARRAY_CONTAINS_ANY|ARRAY_CONTAINS_ALL)\s*(.*)$/;
+exports.EXPRESSION_PATTERN = /(.+)\s(STARTSWITH|ENDSWITH|CONTAINS|ARRAY_CONTAINS|LIKE|=|!=|<|<=|>|>=)\s*$/;
+exports.SUB_QUERY_EXPRESSION_PATTERN = /(.+)\s(ARRAY_CONTAINS_ANY|ARRAY_CONTAINS_ALL)\s*(.*)$/;
 const BINARY_OPERATOR_PATTERN = /^\s*(LIKE|IN|=|!=|<|<=|>|>=)\s*$/;
 const parse = (key, value) => {
-    let match = EXPRESSION_PATTERN.exec(key);
+    let match = exports.EXPRESSION_PATTERN.exec(key);
     // if filter contains expression
     if (match) {
         // "count >": 10, get "count" part
@@ -28,7 +28,7 @@ const parse = (key, value) => {
         return exp;
     }
     // if this is a subquery
-    match = SUB_QUERY_EXPRESSION_PATTERN.exec(key);
+    match = exports.SUB_QUERY_EXPRESSION_PATTERN.exec(key);
     if (match) {
         const joinKey = match[1];
         const filterKey = match[3];

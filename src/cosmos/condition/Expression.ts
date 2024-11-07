@@ -1,17 +1,17 @@
+import { FilterResult, Json, _formatKey } from "./Condition";
+
+import { SubQueryExpression } from "./SubQueryExpression";
 /**
  * class and interfaces represents WHERE expressions. e.g. count > 10, lastName != "Banks", CONTAINS(lastName, "an").
  */
 import randomstring from "randomstring";
-import { FilterResult, Json, _formatKey } from "./Condition";
-
-import { SubQueryExpression } from "./SubQueryExpression";
 
 export interface Expression {
     toFilterResult: () => FilterResult;
 }
 
-const EXPRESSION_PATTERN = /(.+)\s(STARTSWITH|ENDSWITH|CONTAINS|ARRAY_CONTAINS|LIKE|=|!=|<|<=|>|>=)\s*$/;
-const SUB_QUERY_EXPRESSION_PATTERN = /(.+)\s(ARRAY_CONTAINS_ANY|ARRAY_CONTAINS_ALL)\s*(.*)$/;
+export const EXPRESSION_PATTERN = /(.+)\s(STARTSWITH|ENDSWITH|CONTAINS|ARRAY_CONTAINS|LIKE|=|!=|<|<=|>|>=)\s*$/;
+export const SUB_QUERY_EXPRESSION_PATTERN = /(.+)\s(ARRAY_CONTAINS_ANY|ARRAY_CONTAINS_ALL)\s*(.*)$/;
 
 const BINARY_OPERATOR_PATTERN = /^\s*(LIKE|IN|=|!=|<|<=|>|>=)\s*$/;
 

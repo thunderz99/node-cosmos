@@ -22,15 +22,6 @@ class MongoImpl {
          */
         this.databaseMap = new Map();
         /**
-         * Whether to auto generate _expireAtEnabled json field is ttl field is present. Used for compatibility for CosmosDB
-         *
-         */
-        this.expireAtEnabled = false;
-        /**
-         * Whether to auto generate _etag json field when created/updated. Used for compatibility for CosmosDB
-         */
-        this.etagEnabled = false;
-        /**
          * A flag in memory to represent whether the native mongo client is connected to mongodb
          */
         this.connected = false;
@@ -44,15 +35,17 @@ class MongoImpl {
         const { client, databaseMap } = this;
         const database = databaseMap.get(db);
         if (database) {
+            console.info("database exist.");
             return database;
         }
+        console.info(`database not exist. create and connect. this.connected: ${this.connected}`);
         if (!this.connected) {
             await this.client.connect();
             this.connected = true;
             console.info("mongo client connected");
         }
-        const dbResource = await this.createDatabaseIfNotExist(db);
-        const newDatabase = new MongoDatabaseImpl_1.MongoDatabaseImpl(client, dbResource);
+        await this._createDatabaseIfNotExist(db);
+        const newDatabase = new MongoDatabaseImpl_1.MongoDatabaseImpl(client, this);
         const ret = newDatabase;
         databaseMap.set(db, ret);
         return ret;
@@ -61,7 +54,7 @@ class MongoImpl {
         this.databaseMap.delete(db);
         await this.client.db(db).dropDatabase();
     }
-    async createDatabaseIfNotExist(dbName) {
+    async _createDatabaseIfNotExist(dbName) {
         // get db list
         const databases = await this.client.db().admin().listDatabases();
         const dbExists = databases.databases.some((db) => db.name === dbName);
@@ -75,6 +68,23 @@ class MongoImpl {
         await db.createCollection(collectionName);
         console.info(`Database "${dbName}" created with collection "${collectionName}".`);
         return db;
+    }
+    async close() {
+        this.client.close();
+    }
+    /**
+     * Get expireAtEnabled
+     * @returns expireAtEnabled in boolean
+     */
+    getExpireAtEnabled() {
+        return this.expireAtEnabled;
+    }
+    /**
+     * Get etagEnabled
+     * @returns etagEnabled in boolean
+     */
+    getEtagEnabled() {
+        return this.etagEnabled;
     }
 }
 exports.MongoImpl = MongoImpl;
