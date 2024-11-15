@@ -42,12 +42,7 @@ class MongoImpl {
             console.info("database exist.");
             return database;
         }
-        console.info(`database not exist. create and connect. this.connected: ${this.connected}`);
-        if (!this.connected) {
-            await this.client.connect();
-            this.connected = true;
-            console.info("mongo client connected");
-        }
+        console.info(`database not exist. create it: ${db}`);
         await this._createDatabaseIfNotExist(db);
         const newDatabase = new MongoDatabaseImpl_1.MongoDatabaseImpl(client, this);
         const ret = newDatabase;
