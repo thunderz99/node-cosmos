@@ -2,6 +2,7 @@ import { Cosmos } from "../../src/cosmos/Cosmos";
 import { CosmosBuilder } from "../../src/cosmos/CosmosBuilder";
 import { CosmosDatabase } from "../../src/cosmos/CosmosDatabase";
 import { LOCAL_CONNECTION_STRING } from "./mongodb/MongoImpl.test";
+import { MongoImpl } from "../../src/cosmos/impl/mongodb/MongoImpl";
 import dotenv from "dotenv";
 import randomstring from "randomstring";
 
@@ -27,6 +28,8 @@ describe("MongoBuilder Test", () => {
     afterAll(async () => {
         if (db) {
             await db.deleteCollection(COLL_NAME);
+            const mongo = cosmos as MongoImpl;
+            await mongo.close();
         }
     });
 
