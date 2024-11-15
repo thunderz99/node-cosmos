@@ -166,7 +166,7 @@ export const _flatten = (
  * Instead of c.key, return c["key"] or c["key1"]["key2"] for query. In order for cosmosdb reserved words
  *
  * @param key filter's key
- * @param collectionAlias default to "c", can be "x" when using subquerys for EXISTS or JOIN
+ * @param collectionAlias default to "c", can be "x" when using subquery for EXISTS or JOIN
  * @return formatted filter's key c["key1"]["key2"]
  */
 export const _formatKey = (key: string, collectionAlias = "r"): string => {

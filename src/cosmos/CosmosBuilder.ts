@@ -71,6 +71,7 @@ export class CosmosBuilder {
      * @return cosmosBuilder
      */
     withEtagEnabled(enabled: boolean): this {
+        // the etag feature in mongo is not implemented yet
         this.etagEnabled = enabled;
         return this;
     }

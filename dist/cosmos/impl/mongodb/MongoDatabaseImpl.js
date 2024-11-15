@@ -9,13 +9,6 @@ const CosmosContainer_1 = require("../../CosmosContainer");
 const uuid_1 = require("uuid");
 const _partition = "_partition"; // Partition KeyName
 /**
- * In mongodb, do not need to remove _xxx system fields
- * @param item
- */
-const removeUnusedProps = (item) => {
-    return item;
-};
-/**
  * check if id is valid
  * @param id
  */
@@ -97,13 +90,15 @@ class MongoDatabaseImpl {
         Object.assign(_data, { _id: id });
         // add _ts for mongo
         _addTimestamp(_data);
+        // add _expireAt for mongo
+        this._addExpireAt(_data);
         const insertResult = await collection.insertOne(_data);
         const resource = await collection.findOne({
             _id: insertResult.insertedId,
         });
         (0, assert_1.assertIsDefined)(resource, `item, coll:${coll}, data:${JSON.stringify(data)}, partition:${partition}`);
         console.info(`created. coll:${coll}, resource:${resource.id}, partition:${partition}`);
-        return removeUnusedProps(resource);
+        return resource;
     }
     /**
      * Read an item. Throw DocumentClientException(404 NotFound) if object not exist
@@ -172,6 +167,8 @@ class MongoDatabaseImpl {
         Object.assign(_data, { _id: id });
         // add _ts for mongo
         _addTimestamp(_data);
+        // add _expireAt for mongo
+        this._addExpireAt(_data);
         const resource = await collection.findOneAndReplace({ id: id }, // Query by _id
         _data, // Set new data
         {
@@ -180,7 +177,7 @@ class MongoDatabaseImpl {
         });
         (0, assert_1.assertIsDefined)(resource, `item, coll:${coll}, id:${data.id}, partition:${partition}`);
         console.info(`upserted. coll:${coll}, id:${data.id}, partition:${partition}`);
-        return removeUnusedProps(resource);
+        return resource;
     }
     /**
      * Update an item. Supports partial update. Error will be throw if not exist.
@@ -209,6 +206,8 @@ class MongoDatabaseImpl {
         Object.assign(_data, { _id: id });
         // add _ts for mongo
         _addTimestamp(_data);
+        // add _expireAt for mongo
+        this._addExpireAt(_data);
         const resource = await collection.findOneAndUpdate({ id: id }, // Query by _id
         { $set: _data }, // Set new data
         {
@@ -217,7 +216,7 @@ class MongoDatabaseImpl {
         });
         (0, assert_1.assertIsDefined)(resource, `item, coll:${coll}, id:${data.id}, partition:${partition}`);
         console.info(`upserted. coll:${coll}, id:${data.id}, partition:${partition}`);
-        return removeUnusedProps(resource);
+        return resource;
     }
     /**
      * Delete an item. Return {id} if exist. Otherwise return undefined.
@@ -263,13 +262,12 @@ class MongoDatabaseImpl {
         const skip = condition.offset || 0;
         const limit = condition.limit || Condition_1.DEFAULT_LIMIT;
         // Find documents using the defined options
-        const ret = await collection
+        return await collection
             .find(filter)
             .sort(sort)
             .skip(skip)
             .limit(limit)
             .toArray();
-        return ret.map((item) => removeUnusedProps(item));
     }
     /**
      * find data by SQL
@@ -306,6 +304,30 @@ class MongoDatabaseImpl {
         const filter = ConditionUtil_1.ConditionUtil.toBsonFilter(condition.filter);
         // Find documents using the defined options
         return await collection.countDocuments(filter);
+    }
+    /**
+     * Adds an "_expireAt" field automatically if `expireAtEnabled` is true and "ttl" has an integer value.
+     *
+     * @param _data - An object map representing MongoDB document fields.
+     * @return The `expireAt` Date, or `null` if not set.
+     */
+    _addExpireAt(_data) {
+        const account = this.cosmosAccount;
+        if (!account.getExpireAtEnabled()) {
+            return null;
+        }
+        const ttlObj = _data["ttl"];
+        if (ttlObj === undefined || ttlObj === null) {
+            return null;
+        }
+        if (typeof ttlObj !== "number") {
+            return null;
+        }
+        const ttl = ttlObj;
+        // Current time + ttl in milliseconds. Using `number` type to handle large values.
+        const expireAt = new Date(Date.now() + 1000 * ttl);
+        _data["_expireAt"] = expireAt;
+        return expireAt;
     }
 }
 exports.MongoDatabaseImpl = MongoDatabaseImpl;

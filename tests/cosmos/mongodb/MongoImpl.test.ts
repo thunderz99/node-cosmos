@@ -1,6 +1,6 @@
-import { CosmosDatabase } from "../../../src/cosmos/CosmosDatabase";
+import { CosmosDatabase, CosmosDocument } from "../../../src/cosmos/CosmosDatabase";
+
 import { MongoImpl } from "../../../src/cosmos/impl/mongodb/MongoImpl";
-import { assertIsDefined } from "../../../src/util/assert";
 import dotenv from "dotenv";
 import randomstring from "randomstring";
 
@@ -9,6 +9,8 @@ dotenv.config(); // load .env file to process.env
 let db: CosmosDatabase;
 
 let account: MongoImpl;
+
+export const LOCAL_CONNECTION_STRING = "mongodb://localhost:27017/?replicaSet=rs0";
 
 const host = "UnitTestNodeMongo" + randomstring.generate(7);
 
@@ -23,7 +25,11 @@ function isError(e: unknown): e is Error {
 
 describe("MongoImpl Test", () => {
     beforeAll(async () => {
-        account = new MongoImpl(process.env.MONGODB_CONNECTION_STRING);
+        account = new MongoImpl(
+            process.env.MONGODB_CONNECTION_STRING || LOCAL_CONNECTION_STRING,
+            true,
+            true,
+        );
         db = await account.getDatabase(host);
     });
 
@@ -45,6 +51,7 @@ describe("MongoImpl Test", () => {
             expect(user1.id).toEqual(origin.id);
             expect(user1.firstName).toEqual(origin.firstName);
             expect(user1._partition).toEqual("Users");
+            expect(user1._expireAt).toBeUndefined();
 
             const read1 = await db.read(host, origin.id, "Users");
             expect(read1.id).toEqual(user1.id);
@@ -373,6 +380,83 @@ describe("MongoImpl Test", () => {
             expect(user).toBeNull();
         } catch (err) {
             fail("should not throw exception");
+        }
+    });
+
+    it("ttl and expireAt should be set correctly", async () => {
+        const thirtyDaysInSeconds = 30 * 24 * 60 * 60;
+        const origin = {
+            id: "ttl_and_expireAt_" + randomstring.generate(7),
+            firstName: "Tom",
+            lastName: "Banks",
+            ttl: thirtyDaysInSeconds,
+        };
+
+        try {
+            await db.delete(host, origin.id, "Users");
+
+            // test create
+            const user1 = await db.create(host, origin, "Users");
+            expect(user1.id).toEqual(origin.id);
+            expect(user1.firstName).toEqual(origin.firstName);
+            expect(user1._partition).toEqual("Users");
+
+            const currentDate = new Date();
+            // Create a new Date 30 days from now
+            const expectedDate = new Date(currentDate.getTime() + thirtyDaysInSeconds * 1000);
+
+            expect((user1._expireAt as Date).getTime()).toBeGreaterThanOrEqual(
+                expectedDate.getTime() - 1000,
+            );
+            expect((user1._expireAt as Date).getTime()).toBeLessThanOrEqual(
+                expectedDate.getTime() + 1000,
+            );
+
+            // test read
+            const read1 = await db.read(host, origin.id, "Users");
+            expect(read1.id).toEqual(user1.id);
+            expect(read1.lastName).toEqual(origin.lastName);
+
+            expect((read1._expireAt as Date).getTime()).toBeGreaterThanOrEqual(
+                expectedDate.getTime() - 1000,
+            );
+            expect((read1._expireAt as Date).getTime()).toBeLessThanOrEqual(
+                expectedDate.getTime() + 1000,
+            );
+
+            // test update
+
+            let update1: CosmosDocument = Object.assign({}, origin);
+            update1.ttl = thirtyDaysInSeconds * 2;
+
+            update1 = await db.update(host, update1, "Users");
+
+            const expectedDate2 = new Date(currentDate.getTime() + (update1.ttl || 0) * 1000);
+
+            expect((update1._expireAt as Date).getTime()).toBeGreaterThanOrEqual(
+                expectedDate2.getTime() - 1000,
+            );
+            expect((update1._expireAt as Date).getTime()).toBeLessThanOrEqual(
+                expectedDate2.getTime() + 1000,
+            );
+
+            // test upsert
+
+            let upsert1: CosmosDocument = Object.assign({}, origin);
+            upsert1.ttl = thirtyDaysInSeconds * 3;
+
+            upsert1 = await db.upsert(host, update1, "Users");
+
+            const expectedDate3 = new Date(currentDate.getTime() + (upsert1.ttl || 0) * 1000);
+
+            expect((upsert1._expireAt as Date).getTime()).toBeGreaterThanOrEqual(
+                expectedDate3.getTime() - 1000,
+            );
+            expect((upsert1._expireAt as Date).getTime()).toBeLessThanOrEqual(
+                expectedDate3.getTime() + 1000,
+            );
+        } finally {
+            await db.delete(host, origin.id, "Users");
         }
     });
 });

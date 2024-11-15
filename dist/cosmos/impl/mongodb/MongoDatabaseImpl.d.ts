@@ -1,6 +1,6 @@
-import { MongoClient } from "mongodb";
 import { Condition } from "../../condition/Condition";
 import { CosmosDocument, CosmosId } from "../../CosmosDatabase";
+import { MongoClient } from "mongodb";
 import { Cosmos } from "../../Cosmos";
 import { CosmosContainer } from "../../CosmosContainer";
 /**
@@ -97,5 +97,12 @@ export declare class MongoDatabaseImpl {
      * @param partition
      */
     count(coll: string, condition: Condition, partition?: string): Promise<number>;
+    /**
+     * Adds an "_expireAt" field automatically if `expireAtEnabled` is true and "ttl" has an integer value.
+     *
+     * @param _data - An object map representing MongoDB document fields.
+     * @return The `expireAt` Date, or `null` if not set.
+     */
+    _addExpireAt(_data: Record<string, unknown>): Date | null;
 }
 //# sourceMappingURL=MongoDatabaseImpl.d.ts.map
