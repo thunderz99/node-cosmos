@@ -31,6 +31,9 @@ describe("MongoImpl Test", () => {
             true,
         );
         db = await account.getDatabase(host);
+
+        // error will not occur if the db already exist
+        await account._createDatabaseIfNotExist(host);
     });
 
     afterAll(async () => {

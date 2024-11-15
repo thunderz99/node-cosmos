@@ -1,9 +1,13 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.MongoImpl = void 0;
 const mongodb_1 = require("mongodb");
 const assert_1 = require("../../../util/assert");
 const MongoDatabaseImpl_1 = require("./MongoDatabaseImpl");
+const randomstring_1 = __importDefault(require("randomstring"));
 /**
  * class that represent a cosmos account
  *
@@ -64,9 +68,10 @@ class MongoImpl {
         // if not exist, create the db by creating a collection
         console.log(`Database "${dbName}" does not exist. Creating...`);
         const db = this.client.db(dbName);
-        const collectionName = "PING";
+        const collectionName = "PING" + randomstring_1.default.generate(7);
         await db.createCollection(collectionName);
-        console.info(`Database "${dbName}" created with collection "${collectionName}".`);
+        console.info(`Database "${dbName}" created.`);
+        await db.dropCollection(collectionName);
         return db;
     }
     async close() {

@@ -24,6 +24,10 @@ describe("CosmosImpl Test", () => {
         await db.createCollection(COLL_NAME);
     });
 
+    afterAll(async () => {
+        await db.deleteCollection(COLL_NAME);
+    });
+
     it("create and read items", async () => {
         const origin = {
             id: "user_create_id01" + randomstring.generate(7),

@@ -33,7 +33,7 @@ const split = (connectionString: string) => {
  *
  */
 export class CosmosImpl implements Cosmos {
-    private readonly client: CosmosClient;
+    readonly client: CosmosClient;
 
     private readonly databaseMap: Map<string, CosmosDatabase> = new Map();
 

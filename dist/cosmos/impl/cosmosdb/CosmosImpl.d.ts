@@ -1,4 +1,5 @@
 import { Cosmos } from "../../Cosmos";
+import { CosmosClient } from "@azure/cosmos";
 import { CosmosDatabase } from "../../CosmosDatabase";
 /**
  * class that represent a cosmos account
@@ -12,7 +13,7 @@ import { CosmosDatabase } from "../../CosmosDatabase";
  *
  */
 export declare class CosmosImpl implements Cosmos {
-    private readonly client;
+    readonly client: CosmosClient;
     private readonly databaseMap;
     constructor(connectionString: string | undefined);
     getDatabase(db: string): Promise<CosmosDatabase>;

@@ -4,6 +4,7 @@ import { assertIsDefined, assertNotEmpty } from "../../../util/assert";
 import { Cosmos } from "../../Cosmos";
 import { CosmosDatabase } from "../../CosmosDatabase";
 import { MongoDatabaseImpl } from "./MongoDatabaseImpl";
+import randomstring from "randomstring";
 
 /**
  * class that represent a cosmos account
@@ -99,9 +100,10 @@ export class MongoImpl implements Cosmos {
         // if not exist, create the db by creating a collection
         console.log(`Database "${dbName}" does not exist. Creating...`);
         const db = this.client.db(dbName);
-        const collectionName = "PING";
+        const collectionName = "PING" + randomstring.generate(7);
         await db.createCollection(collectionName);
-        console.info(`Database "${dbName}" created with collection "${collectionName}".`);
+        console.info(`Database "${dbName}" created.`);
+        await db.dropCollection(collectionName);
 
         return db;
     }
