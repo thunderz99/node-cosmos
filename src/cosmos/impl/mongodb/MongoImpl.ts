@@ -66,7 +66,13 @@ export class MongoImpl implements Cosmos {
             return database;
         }
 
-        console.info(`database not exist. create it: ${db}`);
+        console.info(`database not exist. create and connect. this.connected: ${this.connected}`);
+
+        if (!this.connected) {
+            await this.client.connect();
+            this.connected = true;
+            console.info("mongo client connected");
+        }
 
         await this._createDatabaseIfNotExist(db);
         const newDatabase = new MongoDatabaseImpl(client, this);
@@ -103,7 +109,9 @@ export class MongoImpl implements Cosmos {
     }
 
     public async close(): Promise<void> {
-        this.client.close();
+        if (this.connected) {
+            await this.client.close();
+        }
     }
 
     /**

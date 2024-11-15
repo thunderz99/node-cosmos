@@ -72,4 +72,10 @@ export class CosmosImpl implements Cosmos {
         this.databaseMap.delete(db);
         await this.client.database(db).delete();
     }
+
+    public async close(): Promise<void> {
+        if (this.client) {
+            this.client.dispose();
+        }
+    }
 }

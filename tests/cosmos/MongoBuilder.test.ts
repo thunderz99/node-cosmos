@@ -28,8 +28,7 @@ describe("MongoBuilder Test", () => {
     afterAll(async () => {
         if (db) {
             await db.deleteCollection(COLL_NAME);
-            const mongo = cosmos as MongoImpl;
-            await mongo.close();
+            await cosmos.close();
         }
     });
 

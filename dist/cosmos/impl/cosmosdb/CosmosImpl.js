@@ -57,6 +57,11 @@ class CosmosImpl {
         this.databaseMap.delete(db);
         await this.client.database(db).delete();
     }
+    async close() {
+        if (this.client) {
+            this.client.dispose();
+        }
+    }
 }
 exports.CosmosImpl = CosmosImpl;
 //# sourceMappingURL=CosmosImpl.js.map

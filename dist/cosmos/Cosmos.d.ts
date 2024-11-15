@@ -30,5 +30,9 @@ export interface Cosmos {
      * @returns A promise that resolves when the database has been deleted.
      */
     deleteDatabase(db: string): Promise<void>;
+    /**
+     * Release the db client resources.
+     */
+    close(): Promise<void>;
 }
 //# sourceMappingURL=Cosmos.d.ts.map

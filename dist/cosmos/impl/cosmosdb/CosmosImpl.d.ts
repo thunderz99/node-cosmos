@@ -18,5 +18,6 @@ export declare class CosmosImpl implements Cosmos {
     constructor(connectionString: string | undefined);
     getDatabase(db: string): Promise<CosmosDatabase>;
     deleteDatabase(db: string): Promise<void>;
+    close(): Promise<void>;
 }
 //# sourceMappingURL=CosmosImpl.d.ts.map
