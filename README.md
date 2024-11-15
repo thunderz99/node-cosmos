@@ -20,12 +20,14 @@ node-cosmos is a client for Azure CosmosDB 's SQL API. Which is an opinionated l
 import { Cosmos } from "node-cosmos"
 
 const db = await new CosmosBuilder()
-  .withConnectionString("YOUR_CONNECTION_STRING").build()
+  .withConnectionString("YOUR_CONNECTION_STRING")
+  .withDatabaseType("cosmosdb or mongodb")
+  .build()
   .getDatabase("my-awesome-db");
 
-await db.upsert("my-awesome-coll", { id:"id011", firstName: "Anony", lastName: "Nobody"} );
+await db.upsert("my-awesome-coll", { id:"id011", firstName: "Anony", lastName: "Nobody"}, "Users");
 
-const users = await db.find("Collection1", {
+const users = await db.find("my-awesome-coll", {
     filter: {
         id : "id010", // id equals "id010"
         "lastName LIKE" : "Nobo%" // lastName starts with Nobo
@@ -33,7 +35,7 @@ const users = await db.find("Collection1", {
     sort: ["firstName", "ASC"],
     offset: 0,
     limit: 100
-});
+}, "Users");
 ```
 
 
