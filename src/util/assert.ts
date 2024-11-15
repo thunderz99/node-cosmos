@@ -4,7 +4,7 @@ export function assertIsDefined<T>(val: T, name = "val"): asserts val is NonNull
     }
 }
 
-export function assertNotEmpty(val: string, name = "val"): void {
+export function assertNotEmpty(val?: string, name = "val"): asserts val is NonNullable<string> {
     if (!val) {
         throw new Error(`Expected '${name}' to be nonempty, but received ${val}`);
     }

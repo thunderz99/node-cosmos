@@ -1,6 +1,6 @@
 {
     "name": "node-cosmos",
-    "version": "0.1.0-RC6",
+    "version": "0.1.4",
     "description": "A light weight azure cosmosdb client aiming at ease of use for creating REST API. Supports json filter, sort and offset/limit",
     "homepage": "https://github.com/thunderz99/node-cosmos",
     "repository": {
@@ -28,7 +28,8 @@
     "dependencies": {
         "@azure/cosmos": "^3.17.1",
         "mongodb": "^6.10.0",
-        "randomstring": "^1.2.1"
+        "randomstring": "^1.2.1",
+        "uuid": "^11.0.2"
     },
     "devDependencies": {
         "@types/jest": "^26.0.4",

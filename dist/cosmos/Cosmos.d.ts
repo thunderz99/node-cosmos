@@ -5,7 +5,10 @@ import { CosmosDatabase } from "./CosmosDatabase";
  * Usage example:
  *
  * ```typescript
- * const cosmos: Cosmos = new CosmosImpl("AccountEndpoint=https://xxx.documents.azure.com:443/;AccountKey=xxx==;");
+ * const cosmos: Cosmos = new CosmosBuilder()
+ *   .withConnectionString("AccountEndpoint=https://xxx.documents.azure.com:443/;AccountKey=xxx==; or mongodb://localhost?replicaSet=rs0")
+ *   .withDatabaseType("cosmosdb or mongodb")
+ *   .build();
  * const db = await cosmos.getDatabase("Database1");
  *
  * // Then use db to perform CRUD / query operations
@@ -27,5 +30,9 @@ export interface Cosmos {
      * @returns A promise that resolves when the database has been deleted.
      */
     deleteDatabase(db: string): Promise<void>;
+    /**
+     * Release the db client resources.
+     */
+    close(): Promise<void>;
 }
 //# sourceMappingURL=Cosmos.d.ts.map

@@ -33,7 +33,7 @@ const split = (connectionString: string) => {
  *
  */
 export class CosmosImpl implements Cosmos {
-    private readonly client: CosmosClient;
+    readonly client: CosmosClient;
 
     private readonly databaseMap: Map<string, CosmosDatabase> = new Map();
 
@@ -71,5 +71,11 @@ export class CosmosImpl implements Cosmos {
     public async deleteDatabase(db: string): Promise<void> {
         this.databaseMap.delete(db);
         await this.client.database(db).delete();
+    }
+
+    public async close(): Promise<void> {
+        if (this.client) {
+            this.client.dispose();
+        }
     }
 }

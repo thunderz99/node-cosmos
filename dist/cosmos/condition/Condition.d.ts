@@ -58,7 +58,7 @@ export declare const _flatten: (obj?: JsonObject, result?: JsonObject, keys?: st
  * Instead of c.key, return c["key"] or c["key1"]["key2"] for query. In order for cosmosdb reserved words
  *
  * @param key filter's key
- * @param collectionAlias default to "c", can be "x" when using subquerys for EXISTS or JOIN
+ * @param collectionAlias default to "c", can be "x" when using subquery for EXISTS or JOIN
  * @return formatted filter's key c["key1"]["key2"]
  */
 export declare const _formatKey: (key: string, collectionAlias?: string) => string;

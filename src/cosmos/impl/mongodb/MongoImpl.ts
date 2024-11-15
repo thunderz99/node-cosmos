@@ -4,6 +4,7 @@ import { assertIsDefined, assertNotEmpty } from "../../../util/assert";
 import { Cosmos } from "../../Cosmos";
 import { CosmosDatabase } from "../../CosmosDatabase";
 import { MongoDatabaseImpl } from "./MongoDatabaseImpl";
+import randomstring from "randomstring";
 
 /**
  * class that represent a cosmos account
@@ -31,12 +32,12 @@ export class MongoImpl implements Cosmos {
      * Whether to auto generate _expireAtEnabled json field is ttl field is present. Used for compatibility for CosmosDB
      *
      */
-    private expireAtEnabled = false;
+    private readonly expireAtEnabled;
 
     /**
      * Whether to auto generate _etag json field when created/updated. Used for compatibility for CosmosDB
      */
-    private etagEnabled = false;
+    private readonly etagEnabled;
 
     /**
      * A flag in memory to represent whether the native mongo client is connected to mongodb
@@ -61,8 +62,11 @@ export class MongoImpl implements Cosmos {
 
         const database = databaseMap.get(db);
         if (database) {
+            console.info("database exist.");
             return database;
         }
+
+        console.info(`database not exist. create and connect. this.connected: ${this.connected}`);
 
         if (!this.connected) {
             await this.client.connect();
@@ -70,8 +74,8 @@ export class MongoImpl implements Cosmos {
             console.info("mongo client connected");
         }
 
-        const dbResource = await this.createDatabaseIfNotExist(db);
-        const newDatabase = new MongoDatabaseImpl(client, dbResource);
+        await this._createDatabaseIfNotExist(db);
+        const newDatabase = new MongoDatabaseImpl(client, this);
 
         const ret = (newDatabase as unknown) as CosmosDatabase;
         databaseMap.set(db, ret);
@@ -83,7 +87,7 @@ export class MongoImpl implements Cosmos {
         await this.client.db(db).dropDatabase();
     }
 
-    public async createDatabaseIfNotExist(dbName: string): Promise<Db> {
+    public async _createDatabaseIfNotExist(dbName: string): Promise<Db> {
         // get db list
         const databases = await this.client.db().admin().listDatabases();
 
@@ -96,10 +100,33 @@ export class MongoImpl implements Cosmos {
         // if not exist, create the db by creating a collection
         console.log(`Database "${dbName}" does not exist. Creating...`);
         const db = this.client.db(dbName);
-        const collectionName = "PING";
+        const collectionName = "PING" + randomstring.generate(7);
         await db.createCollection(collectionName);
-        console.info(`Database "${dbName}" created with collection "${collectionName}".`);
+        console.info(`Database "${dbName}" created.`);
+        await db.dropCollection(collectionName);
 
         return db;
+    }
+
+    public async close(): Promise<void> {
+        if (this.connected) {
+            await this.client.close();
+        }
+    }
+
+    /**
+     * Get expireAtEnabled
+     * @returns expireAtEnabled in boolean
+     */
+    public getExpireAtEnabled(): boolean {
+        return this.expireAtEnabled;
+    }
+
+    /**
+     * Get etagEnabled
+     * @returns etagEnabled in boolean
+     */
+    public getEtagEnabled(): boolean {
+        return this.etagEnabled;
     }
 }

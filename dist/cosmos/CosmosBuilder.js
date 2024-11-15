@@ -60,6 +60,7 @@ class CosmosBuilder {
      * @return cosmosBuilder
      */
     withEtagEnabled(enabled) {
+        // the etag feature in mongo is not implemented yet
         this.etagEnabled = enabled;
         return this;
     }

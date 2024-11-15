@@ -1,31 +1,15 @@
-import { Condition, toQuerySpec } from "../../condition/Condition";
-import {
-    Container,
-    CosmosClient,
-    Database,
-    FeedOptions,
-    FeedResponse,
-    ItemDefinition,
-    ItemResponse,
-    QueryIterator,
-} from "@azure/cosmos";
-import { CosmosDatabase, CosmosDocument, CosmosError, CosmosId } from "../../CosmosDatabase";
+import { Condition, DEFAULT_LIMIT, _flatten } from "../../condition/Condition";
+import { CosmosDocument, CosmosError, CosmosId } from "../../CosmosDatabase";
 import { Db, MongoClient } from "mongodb";
+import { assertIsDefined, assertNotEmpty } from "../../../util/assert";
 
+import { ConditionUtil } from "./util/ConditionUtil";
+import { Cosmos } from "../../Cosmos";
 import { CosmosContainer } from "../../CosmosContainer";
-import { CosmosDatabaseImpl } from "../cosmosdb/CosmosDatabaseImpl";
-import { assertIsDefined } from "../../../util/assert";
-import { executeWithRetry } from "../../../util/RetryUtil";
+import { MongoImpl } from "./MongoImpl";
+import { v4 as uuidv4 } from "uuid";
 
 const _partition = "_partition"; // Partition KeyName
-
-/**
- * In mongodb, do not need to remove _xxx system fields
- * @param item
- */
-const removeUnusedProps = (item: CosmosDocument) => {
-    return item;
-};
 
 /**
  * check if id is valid
@@ -45,12 +29,12 @@ const checkValidId = (id: string) => {
  */
 export class MongoDatabaseImpl {
     private readonly client: MongoClient;
-    private readonly database: Db;
+    private readonly cosmosAccount: Cosmos;
     private readonly collectionMap: Map<string, CosmosContainer> = new Map();
 
-    constructor(client: MongoClient, database: Db) {
+    constructor(client: MongoClient, cosmosAccount: Cosmos) {
         this.client = client;
-        this.database = database;
+        this.cosmosAccount = cosmosAccount;
     }
 
     /**
@@ -58,9 +42,13 @@ export class MongoDatabaseImpl {
      * @param coll
      */
     public async createCollection(coll: string): Promise<CosmosContainer> {
-        const { database } = this;
-        const collection = await database.createCollection(coll);
-        return new CosmosContainer(coll, collection);
+        const { cosmosAccount } = this;
+        // in mongodb, we use database for a cosmos container
+        // and use collection for a cosmos partition
+        // because mongo does not support partition
+        await cosmosAccount.getDatabase(coll);
+        const nativeDb = this.client.db(coll);
+        return new CosmosContainer(coll, nativeDb);
     }
 
     /**
@@ -68,8 +56,8 @@ export class MongoDatabaseImpl {
      * @param coll
      */
     public async deleteCollection(coll: string): Promise<void> {
-        const { database } = this;
-        await database.collection(coll).drop();
+        const { cosmosAccount } = this;
+        await cosmosAccount.deleteDatabase(coll);
     }
 
     /**
@@ -86,271 +74,390 @@ export class MongoDatabaseImpl {
         return collection;
     }
 
-    // /**
-    //  * Create an item.
-    //  * @param coll
-    //  * @param data
-    //  * @param partition
-    //  */
-    // public async create(
-    //     coll: string,
-    //     data: CosmosDocument,
-    //     partition: string = coll,
-    // ): Promise<CosmosDocument> {
-    //     const container = await this.getCollection(coll);
+    /**
+     * Create an item.
+     * @param coll
+     * @param data
+     * @param partition
+     */
+    public async create(
+        coll: string,
+        data: CosmosDocument,
+        partition: string = coll,
+    ): Promise<CosmosDocument> {
+        assertNotEmpty(coll, "coll");
+        assertNotEmpty(partition, "partition");
+        assertIsDefined(data, "data");
 
-    //     if (data.id) {
-    //         // if id is specified explicitly, check if a valid one.
-    //         checkValidId(data.id);
-    //     }
+        const container = await this.getCollection(coll);
 
-    //     const _data = {};
-    //     Object.assign(_data, data);
-    //     Object.assign(_data, { [_partition]: partition });
+        // get the native Db obj for mongo sdk
+        // this represent a cosmos container
+        const db = container.container as Db;
 
-    //     const { resource } = await executeWithRetry<ItemResponse<CosmosDocument>>(() =>
-    //         container.items.create(_data),
-    //     );
-    //     assertIsDefined(
-    //         resource,
-    //         `item, coll:${coll}, data:${JSON.stringify(data)}, partition:${partition}`,
-    //     );
-    //     console.info(`created. coll:${coll}, resource:${resource.id}, partition:${partition}`);
+        // this represent a cosmos partition
+        const collection = db.collection(partition);
 
-    //     return removeUnusedProps(resource);
-    // }
+        const id = data.id || uuidv4().toString();
 
-    // /**
-    //  * Read an item. Throw DocumentClientException(404 NotFound) if object not exist
-    //  *
-    //  * @param coll
-    //  * @param id
-    //  * @param partition
-    //  */
-    // public async read(coll: string, id: string, partition: string = coll): Promise<CosmosDocument> {
-    //     const container = await this.getCollection(coll);
+        //check if id a valid one.
+        checkValidId(id);
 
-    //     const item = container.item(id, partition);
-    //     const itemResponse = await executeWithRetry<ItemResponse<CosmosDocument>>(() =>
-    //         item.read<CosmosDocument>(),
-    //     );
+        const _data = {};
+        Object.assign(_data, data);
 
-    //     const { statusCode, resource } = itemResponse;
+        // add _partition
+        Object.assign(_data, { [_partition]: partition });
 
-    //     if (statusCode === 404) {
-    //         throw new CosmosError(itemResponse);
-    //     }
+        // add _id for mongo
+        Object.assign(_data, { _id: id });
+        // add _ts for mongo
+        _addTimestamp(_data);
 
-    //     assertIsDefined(resource);
+        // add _expireAt for mongo
+        this._addExpireAt(_data);
 
-    //     return resource;
-    // }
+        const insertResult = await collection.insertOne(_data);
+        const resource = await collection.findOne<CosmosDocument>({
+            _id: insertResult.insertedId,
+        });
 
-    // /**
-    //  * Read an item. return defaultValue if item not exist
-    //  *
-    //  * @param coll
-    //  * @param id
-    //  * @param partition
-    //  * @param defaultValue defaultValue if item not exist
-    //  */
-    // public async readOrDefault(
-    //     coll: string,
-    //     id: string,
-    //     partition: string,
-    //     defaultValue: CosmosDocument | null,
-    // ): Promise<CosmosDocument | null> {
-    //     const container = await this.getCollection(coll);
+        assertIsDefined(
+            resource,
+            `item, coll:${coll}, data:${JSON.stringify(data)}, partition:${partition}`,
+        );
 
-    //     const item = container.item(id, partition);
-    //     try {
-    //         const itemResponse = await executeWithRetry<ItemResponse<CosmosDocument>>(() =>
-    //             item.read<CosmosDocument>(),
-    //         );
+        console.info(`created. coll:${coll}, resource:${resource.id}, partition:${partition}`);
 
-    //         const { statusCode, resource } = itemResponse;
+        return resource;
+    }
 
-    //         if (statusCode >= 400) {
-    //             throw new CosmosError(itemResponse);
-    //         }
+    /**
+     * Read an item. Throw DocumentClientException(404 NotFound) if object not exist
+     *
+     * @param coll
+     * @param id
+     * @param partition
+     */
+    public async read(coll: string, id: string, partition: string = coll): Promise<CosmosDocument> {
+        assertNotEmpty(coll, "coll");
+        assertNotEmpty(id, "id");
+        assertNotEmpty(partition, "partition");
 
-    //         assertIsDefined(resource);
+        const container = await this.getCollection(coll);
 
-    //         return resource;
-    //     } catch (e) {
-    //         if (typeof e === "object" && e !== null && "code" in e && e.code === 404) {
-    //             return defaultValue;
-    //         } else {
-    //             throw e;
-    //         }
-    //     }
-    // }
+        // get the native Db obj for mongo sdk
+        const db = container.container as Db;
 
-    // /**
-    //  * Upsert an item. Insert will be performed if not exist. Do not support partial update.
-    //  * @param coll
-    //  * @param data
-    //  * @param partition
-    //  */
-    // public async upsert(
-    //     coll: string,
-    //     data: CosmosDocument,
-    //     partition: string = coll,
-    // ): Promise<CosmosDocument> {
-    //     const container = await this.getCollection(coll);
-    //     assertIsDefined(data.id, "data.id");
-    //     checkValidId(data.id);
+        const collection = db.collection(partition);
 
-    //     const _data = {};
-    //     Object.assign(_data, data);
-    //     Object.assign(_data, { [_partition]: partition });
+        const resource = await collection.findOne<CosmosDocument>({ id: id });
 
-    //     const { resource } = await executeWithRetry<ItemResponse<CosmosDocument>>(() =>
-    //         container.items.upsert(_data),
-    //     );
-    //     assertIsDefined(resource, `item, coll:${coll}, id:${data.id}, partition:${partition}`);
-    //     console.info(`upserted. coll:${coll}, id:${data.id}, partition:${partition}`);
-    //     return removeUnusedProps(resource);
-    // }
+        if (!resource) {
+            throw new CosmosError(undefined, 404, `item not found. id:${id}`);
+        }
+        return resource;
+    }
 
-    // /**
-    //  * Update an item. Supports partial update. Error will be throw if not exist.
-    //  * @param coll
-    //  * @param data
-    //  * @param partition
-    //  */
-    // public async update(
-    //     coll: string,
-    //     data: CosmosDocument,
-    //     partition: string = coll,
-    // ): Promise<CosmosDocument> {
-    //     const container = await this.getCollection(coll);
+    /**
+     * Read an item. return defaultValue if item not exist
+     *
+     * @param coll
+     * @param id
+     * @param partition
+     * @param defaultValue defaultValue if item not exist
+     */
+    public async readOrDefault(
+        coll: string,
+        id: string,
+        partition: string,
+        defaultValue: CosmosDocument | null,
+    ): Promise<CosmosDocument | null> {
+        assertNotEmpty(coll, "coll");
+        assertNotEmpty(id, "id");
+        assertNotEmpty(partition, "partition");
 
-    //     assertIsDefined(data.id, "data.id");
-    //     checkValidId(data.id);
+        const container = await this.getCollection(coll);
 
-    //     const item = container.item(data.id, partition);
-    //     const { resource: toUpdate } = await item.read<CosmosDocument>();
-    //     assertIsDefined(toUpdate, `toUpdate, ${coll}, ${data.id}, ${partition}`);
-    //     Object.assign(toUpdate, data);
+        // get the native Db obj for mongo sdk
+        const db = container.container as Db;
 
-    //     const { resource: updated } = await executeWithRetry<ItemResponse<CosmosDocument>>(() =>
-    //         item.replace(toUpdate),
-    //     );
-    //     assertIsDefined(updated, `item, coll:${coll}, id:${data.id}, partition:${partition}`);
-    //     console.info(`updated. coll:${coll}, id:${data.id}, partition:${partition}`);
-    //     return removeUnusedProps(updated);
-    // }
+        const collection = db.collection(partition);
 
-    // /**
-    //  * Delete an item. Return {id} if exist. Otherwise return undefined.
-    //  *
-    //  * @param coll
-    //  * @param id
-    //  * @param partition
-    //  */
-    // public async delete(coll: string, id: string, partition: string = coll): Promise<CosmosId> {
-    //     const container = await this.getCollection(coll);
+        const resource = await collection.findOne<CosmosDocument>({ id: id });
 
-    //     const item = container.item(id, partition);
+        return resource || defaultValue;
+    }
 
-    //     try {
-    //         await executeWithRetry<ItemResponse<ItemDefinition>>(() => item.delete());
-    //         console.info(`deleted coll:${coll}, id:${id}, partition:${partition}`);
-    //         return { id };
-    //     } catch (e) {
-    //         if (typeof e === "object" && e !== null && "code" in e && e.code === 404) {
-    //             return undefined;
-    //         } else {
-    //             throw e;
-    //         }
-    //     }
-    // }
+    /**
+     * Upsert an item. Insert will be performed if not exist. Do not support partial update.
+     * @param coll
+     * @param data
+     * @param partition
+     */
+    public async upsert(
+        coll: string,
+        data: CosmosDocument,
+        partition: string = coll,
+    ): Promise<CosmosDocument> {
+        assertNotEmpty(coll, "coll");
+        assertNotEmpty(partition, "partition");
+        assertIsDefined(data, "data");
 
-    // /**
-    //  * find data by condition
-    //  *
-    //  * @param coll
-    //  * @param condition
-    //  * @param partition
-    //  */
-    // public async find(
-    //     coll: string,
-    //     condition: Condition,
-    //     partition?: string,
-    // ): Promise<CosmosDocument[]> {
-    //     const container = await this.getCollection(coll);
+        const container = await this.getCollection(coll);
 
-    //     const partitionKey = partition;
+        // get the native Db obj for mongo sdk
+        // this represent a cosmos container
+        const db = container.container as Db;
 
-    //     const options: FeedOptions = { partitionKey };
+        // this represent a cosmos partition
+        const collection = db.collection(partition);
 
-    //     const querySpec = toQuerySpec(condition);
+        const id = data.id || uuidv4().toString();
 
-    //     const iter = await executeWithRetry<QueryIterator<CosmosDocument>>(async () =>
-    //         container.items.query(querySpec, options),
-    //     );
+        //check if id a valid one.
+        checkValidId(id);
 
-    //     const response = await iter.fetchAll();
-    //     const ret = response.resources || [];
+        const _data = {};
+        Object.assign(_data, data);
 
-    //     return ret.map((item) => removeUnusedProps(item));
-    // }
+        // add _partition
+        Object.assign(_data, { [_partition]: partition });
 
-    // /**
-    //  * find data by SQL
-    //  * using SQL-like syntax
-    //  * https://github.com/Azure/azure-sdk-for-js/blob/main/sdk/cosmosdb/cosmos/README.md#query-the-database
-    //  * @param coll
-    //  * @param query
-    //  * @param partition
-    //  */
-    // public async findBySQL(
-    //     coll: string,
-    //     query: string,
-    //     partition?: string,
-    // ): Promise<CosmosDocument[]> {
-    //     const container = await this.getCollection(coll);
+        // add _id for mongo
+        Object.assign(_data, { _id: id });
+        // add _ts for mongo
+        _addTimestamp(_data);
+        // add _expireAt for mongo
+        this._addExpireAt(_data);
 
-    //     const partitionKey = partition;
+        const resource = await collection.findOneAndReplace(
+            { id: id }, // Query by _id
+            _data, // Set new data
+            {
+                upsert: true, // Enable upsert
+                returnDocument: "after", // Return the updated document
+            },
+        );
 
-    //     const options: FeedOptions = { partitionKey };
+        assertIsDefined(resource, `item, coll:${coll}, id:${data.id}, partition:${partition}`);
+        console.info(`upserted. coll:${coll}, id:${data.id}, partition:${partition}`);
+        return resource;
+    }
 
-    //     const iter = await executeWithRetry<QueryIterator<CosmosDocument>>(async () =>
-    //         container.items.query(query, options),
-    //     );
+    /**
+     * Update an item. Supports partial update. Error will be throw if not exist.
+     * @param coll
+     * @param data
+     * @param partition
+     */
+    public async update(
+        coll: string,
+        data: CosmosDocument,
+        partition: string = coll,
+    ): Promise<CosmosDocument> {
+        assertNotEmpty(coll, "coll");
+        assertNotEmpty(partition, "partition");
+        assertIsDefined(data, "data");
 
-    //     const response = await iter.fetchAll();
-    //     const ret = response.resources || [];
+        const container = await this.getCollection(coll);
 
-    //     return ret.map((item) => removeUnusedProps(item));
-    // }
+        // get the native Db obj for mongo sdk
+        // this represent a cosmos container
+        const db = container.container as Db;
 
-    // /**
-    //  * count data by condition
-    //  *
-    //  * @param coll
-    //  * @param condition
-    //  * @param partition
-    //  */
-    // public async count(coll: string, condition: Condition, partition?: string): Promise<number> {
-    //     const container = await this.getCollection(coll);
+        // this represent a cosmos partition
+        const collection = db.collection(partition);
 
-    //     const partitionKey = partition;
-    //     const options: FeedOptions = { partitionKey };
+        const id = data.id || uuidv4().toString();
 
-    //     const querySpec = toQuerySpec(condition, true);
+        //check if id a valid one.
+        checkValidId(id);
 
-    //     const iter = await executeWithRetry<QueryIterator<CosmosDocument>>(async () =>
-    //         container.items.query(querySpec, options),
-    //     );
+        const _data = {};
+        Object.assign(_data, data);
 
-    //     const res = await executeWithRetry<FeedResponse<CosmosDocument>>(async () =>
-    //         iter.fetchNext(),
-    //     );
+        // add _partition
+        Object.assign(_data, { [_partition]: partition });
 
-    //     const [{ $1: total }] = res.resources;
+        // add _id for mongo
+        Object.assign(_data, { _id: id });
+        // add _ts for mongo
+        _addTimestamp(_data);
+        // add _expireAt for mongo
+        this._addExpireAt(_data);
 
-    //     return total;
-    // }
+        const resource = await collection.findOneAndUpdate(
+            { id: id }, // Query by _id
+            { $set: _data }, // Set new data
+            {
+                upsert: false, // normal update(not an upsert)
+                returnDocument: "after", // Return the updated document
+            },
+        );
+
+        assertIsDefined(resource, `item, coll:${coll}, id:${data.id}, partition:${partition}`);
+        console.info(`upserted. coll:${coll}, id:${data.id}, partition:${partition}`);
+        return resource;
+    }
+
+    /**
+     * Delete an item. Return {id} if exist. Otherwise return undefined.
+     *
+     * @param coll
+     * @param id
+     * @param partition
+     */
+    public async delete(coll: string, id: string, partition: string = coll): Promise<CosmosId> {
+        assertNotEmpty(coll, "coll");
+        assertNotEmpty(id, "id");
+        assertNotEmpty(partition, "partition");
+
+        const container = await this.getCollection(coll);
+
+        // get the native Db obj for mongo sdk
+        const db = container.container as Db;
+
+        const collection = db.collection(partition);
+
+        await collection.deleteOne({ id: id });
+
+        console.info(`deleted coll:${coll}, id:${id}, partition:${partition}`);
+        return { id };
+    }
+
+    /**
+     * find data by condition
+     *
+     * @param coll
+     * @param condition
+     * @param partition
+     */
+    public async find(
+        coll: string,
+        condition: Condition,
+        partition?: string,
+    ): Promise<CosmosDocument[]> {
+        assertNotEmpty(coll, "coll");
+
+        console.info(`find coll:${coll}, partition:${partition}`);
+        if (!partition) {
+            throw new Error(
+                "partition cannot be set to null. cross-partition is not supported for mongodb",
+            );
+        }
+
+        const container = await this.getCollection(coll);
+
+        // get the native Db obj for mongo sdk
+        // this represent a cosmos container
+        const db = container.container as Db;
+
+        // this represent a cosmos partition
+        const collection = db.collection(partition);
+
+        // Define filter, sort, skip, and limit
+        const filter = ConditionUtil.toBsonFilter(_flatten(condition.filter));
+        const sort = ConditionUtil.toBsonSort(condition.sort);
+        const skip = condition.offset || 0;
+        const limit = condition.limit || DEFAULT_LIMIT;
+
+        // Find documents using the defined options
+        return await collection
+            .find<CosmosDocument>(filter)
+            .sort(sort)
+            .skip(skip)
+            .limit(limit)
+            .toArray();
+    }
+
+    /**
+     * find data by SQL
+     * using SQL-like syntax
+     * https://github.com/Azure/azure-sdk-for-js/blob/main/sdk/cosmosdb/cosmos/README.md#query-the-database
+     * @param coll
+     * @param query
+     * @param partition
+     */
+    public async findBySQL(
+        coll: string,
+        query: string,
+        partition?: string,
+    ): Promise<CosmosDocument[]> {
+        console.info(`findBySQL coll:${coll}, partition:${partition}`);
+        throw new Error("findBySQL is not supported for mongodb");
+    }
+
+    /**
+     * count data by condition
+     *
+     * @param coll
+     * @param condition
+     * @param partition
+     */
+    public async count(coll: string, condition: Condition, partition?: string): Promise<number> {
+        assertNotEmpty(coll, "coll");
+
+        console.info(`count coll:${coll}, partition:${partition}`);
+        if (!partition) {
+            throw new Error(
+                "partition cannot be set to null. cross-partition is not supported for mongodb",
+            );
+        }
+        const container = await this.getCollection(coll);
+
+        // get the native Db obj for mongo sdk
+        // this represent a cosmos container
+        const db = container.container as Db;
+
+        // this represent a cosmos partition
+        const collection = db.collection(partition);
+
+        // Define filter, sort, skip, and limit
+        const filter = ConditionUtil.toBsonFilter(condition.filter);
+
+        // Find documents using the defined options
+        return await collection.countDocuments(filter);
+    }
+
+    /**
+     * Adds an "_expireAt" field automatically if `expireAtEnabled` is true and "ttl" has an integer value.
+     *
+     * @param _data - An object map representing MongoDB document fields.
+     * @return The `expireAt` Date, or `null` if not set.
+     */
+    _addExpireAt(_data: Record<string, unknown>): Date | null {
+        const account = this.cosmosAccount as MongoImpl;
+        if (!account.getExpireAtEnabled()) {
+            return null;
+        }
+
+        const ttlObj = _data["ttl"];
+        if (ttlObj === undefined || ttlObj === null) {
+            return null;
+        }
+
+        if (typeof ttlObj !== "number") {
+            return null;
+        }
+
+        const ttl = ttlObj as number;
+
+        // Current time + ttl in milliseconds. Using `number` type to handle large values.
+        const expireAt = new Date(Date.now() + 1000 * ttl);
+
+        _data["_expireAt"] = expireAt;
+
+        return expireAt;
+    }
 }
+
+/**
+ * add timestamp field(_ts) to data. we use epoch seconds with milliseconds as double(e.g. 1714546148.123d)
+ * so when we use sort on _ts, we can get a more stable sort order.
+ * @param _data the json data
+ */
+const _addTimestamp = (_data: Record<string, unknown>): void => {
+    const epochMillis: number = Date.now();
+    Object.assign(_data, { _ts: epochMillis / 1000 });
+};
