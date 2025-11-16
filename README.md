@@ -2,6 +2,8 @@
 
 node-cosmos is a client for Azure CosmosDB 's SQL API. Which is an opinionated library aimed at ease of creating REST API for CRUD and find.
 
+Support cosmosdb / mongodb / postgres as backend databases.
+
 [![Node.js CI](https://github.com/thunderz99/node-cosmos/actions/workflows/node.js.yml/badge.svg)](https://github.com/thunderz99/node-cosmos/actions/workflows/node.js.yml)
 
 
@@ -21,7 +23,7 @@ import { Cosmos } from "node-cosmos"
 
 const db = await new CosmosBuilder()
   .withConnectionString("YOUR_CONNECTION_STRING")
-  .withDatabaseType("cosmosdb or mongodb")
+  .withDatabaseType("cosmosdb") //  or mongodb / postgres
   .build()
   .getDatabase("my-awesome-db");
 
@@ -37,6 +39,7 @@ const users = await db.find("my-awesome-coll", {
     limit: 100
 }, "Users");
 ```
+
 
 
 ## Examples
@@ -160,6 +163,7 @@ const users = await db.find("Collection1", cond, "Users");
 ### Cross-partition queries
 
 ```typescript
+// cross partition queries are only supported for cosmosdb.
 
 const cond = {
   filter: {
@@ -184,3 +188,17 @@ const items = await db.findBySQL(
                     "Users",
                 );
 ```
+
+
+
+### Terminology mapping for Cosmos DB / MongoDB / PostgreSQL
+
+node-cosmos uses unified terminology across different backends.  
+The table below shows how those terms correspond in each database.
+
+| Concept    | Azure Cosmos DB (SQL API) | MongoDB    | PostgreSQL |
+| ---------- | ------------------------- | ---------- | ---------- |
+| collection | container                 | collection | schema     |
+| partition  | logical partition (key)   | partition  | table      |
+| document   | item                      | document   | row/record |
+

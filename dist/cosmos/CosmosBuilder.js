@@ -4,6 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CosmosBuilder = void 0;
+const PostgresImpl_1 = require("./impl/postgresql/PostgresImpl");
 const CosmosImpl_1 = require("./impl/cosmosdb/CosmosImpl");
 const MongoImpl_1 = require("./impl/mongodb/MongoImpl");
 const assert_1 = __importDefault(require("assert"));
@@ -40,8 +41,67 @@ class CosmosBuilder {
      * @return cosmosBuilder
      */
     withConnectionString(connectionString) {
-        this.connectionString = connectionString;
+        this.connectionString = CosmosBuilder.normalizeConnectionString(connectionString);
         return this;
+    }
+    /**
+     * Normalizes the host part of a connection string so Node resolves localhost consistently.
+     */
+    static normalizeConnectionString(connectionString) {
+        if (!connectionString) {
+            return connectionString;
+        }
+        const normalized = CosmosBuilder.normalizePostgresVariants(connectionString);
+        try {
+            const url = new URL(normalized);
+            CosmosBuilder.applySearchParamsToUserInfo(url);
+            if (url.hostname === "localhost") {
+                url.hostname = "127.0.0.1";
+                url.host = url.port ? `127.0.0.1:${url.port}` : "127.0.0.1";
+            }
+            return url.toString();
+        }
+        catch {
+            // ignore and fallback to raw connection string
+            return normalized;
+        }
+    }
+    /**
+     * Transforms non-standard postgres connection strings (jdbc/postgresql schemes) into
+     * the canonical postgres:// format so downstream URL parsing behaves consistently.
+     */
+    static normalizePostgresVariants(connectionString) {
+        let normalized = connectionString;
+        if (normalized.startsWith("jdbc:postgresql://")) {
+            normalized = normalized.substring("jdbc:".length);
+        }
+        if (normalized.startsWith("postgresql://")) {
+            normalized = `postgres://${normalized.substring("postgresql://".length)}`;
+        }
+        return normalized;
+    }
+    /**
+     * Moves credentials encoded as search parameters (user/password) into the URL's
+     * username/password fields, mirroring how postgres connection strings are typically formatted.
+     */
+    static applySearchParamsToUserInfo(url) {
+        const params = url.searchParams;
+        const user = params.get("user");
+        const password = params.get("password");
+        if (user && !url.username) {
+            url.username = user;
+        }
+        if (password && !url.password) {
+            url.password = password;
+        }
+        if (user) {
+            params.delete("user");
+        }
+        if (password) {
+            params.delete("password");
+        }
+        const serialized = params.toString();
+        url.search = serialized ? `?${serialized}` : "";
     }
     /**
      * Specify whether to enable the expireAt feature for mongodb. No effect on cosmosdb.
@@ -65,6 +125,16 @@ class CosmosBuilder {
         return this;
     }
     /**
+     * Specify a custom Pool factory for postgresql. Useful for tests.
+     *
+     * @param factory
+     * @returns cosmosBuilder
+     */
+    withPostgresPoolFactory(factory) {
+        this.postgresPoolFactory = factory;
+        return this;
+    }
+    /**
      * Build the instance representing a Cosmos instance.
      *
      * @return Cosmos instance
@@ -78,6 +148,9 @@ class CosmosBuilder {
         if (this.dbType === CosmosBuilder.MONGODB) {
             return new MongoImpl_1.MongoImpl(this.connectionString || "", this.expireAtEnabled, this.etagEnabled);
         }
+        if (this.dbType === CosmosBuilder.POSTGRES) {
+            return new PostgresImpl_1.PostgresImpl(this.connectionString, this.postgresPoolFactory);
+        }
         throw new Error(`Not supported dbType: ${this.dbType}`);
     }
 }
@@ -90,4 +163,8 @@ CosmosBuilder.COSMOSDB = "cosmosdb";
  * Constant for dbType: mongodb
  */
 CosmosBuilder.MONGODB = "mongodb";
+/**
+ * Constant for dbType: postgres
+ */
+CosmosBuilder.POSTGRES = "postgres";
 //# sourceMappingURL=CosmosBuilder.js.map
