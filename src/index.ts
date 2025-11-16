@@ -13,3 +13,7 @@ export { CosmosImpl } from "./cosmos/impl/cosmosdb/CosmosImpl";
 export { MongoDatabaseImpl } from "./cosmos/impl/mongodb/MongoDatabaseImpl";
 
 export { MongoImpl } from "./cosmos/impl/mongodb/MongoImpl";
+
+export { PostgresDatabaseImpl } from "./cosmos/impl/postgresql/PostgresDatabaseImpl";
+
+export { PostgresImpl, PostgresPoolFactory } from "./cosmos/impl/postgresql/PostgresImpl";

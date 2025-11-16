@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.MongoImpl = exports.MongoDatabaseImpl = exports.CosmosImpl = exports.CosmosDatabaseImpl = exports.isJsonObject = exports.CosmosError = exports.CosmosBuilder = void 0;
+exports.PostgresImpl = exports.PostgresDatabaseImpl = exports.MongoImpl = exports.MongoDatabaseImpl = exports.CosmosImpl = exports.CosmosDatabaseImpl = exports.isJsonObject = exports.CosmosError = exports.CosmosBuilder = void 0;
 var CosmosBuilder_1 = require("./cosmos/CosmosBuilder");
 Object.defineProperty(exports, "CosmosBuilder", { enumerable: true, get: function () { return CosmosBuilder_1.CosmosBuilder; } });
 var CosmosDatabase_1 = require("./cosmos/CosmosDatabase");
@@ -15,4 +15,8 @@ var MongoDatabaseImpl_1 = require("./cosmos/impl/mongodb/MongoDatabaseImpl");
 Object.defineProperty(exports, "MongoDatabaseImpl", { enumerable: true, get: function () { return MongoDatabaseImpl_1.MongoDatabaseImpl; } });
 var MongoImpl_1 = require("./cosmos/impl/mongodb/MongoImpl");
 Object.defineProperty(exports, "MongoImpl", { enumerable: true, get: function () { return MongoImpl_1.MongoImpl; } });
+var PostgresDatabaseImpl_1 = require("./cosmos/impl/postgresql/PostgresDatabaseImpl");
+Object.defineProperty(exports, "PostgresDatabaseImpl", { enumerable: true, get: function () { return PostgresDatabaseImpl_1.PostgresDatabaseImpl; } });
+var PostgresImpl_1 = require("./cosmos/impl/postgresql/PostgresImpl");
+Object.defineProperty(exports, "PostgresImpl", { enumerable: true, get: function () { return PostgresImpl_1.PostgresImpl; } });
 //# sourceMappingURL=index.js.map
