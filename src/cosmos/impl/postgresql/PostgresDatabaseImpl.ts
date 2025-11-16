@@ -12,8 +12,10 @@ import { PostgresConditionBuilder } from "./PostgresConditionBuilder";
 import { assertIsDefined, assertNotEmpty } from "../../../util/assert";
 import { v4 as uuidv4 } from "uuid";
 
+/** Ensures schema/table names match the limited identifier rules. */
 const identifierRegex = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
+/** Validates document ids for basic safety. */
 const checkValidId = (id: string) => {
     if (!id) {
         throw new Error("id cannot be empty");
@@ -23,11 +25,13 @@ const checkValidId = (id: string) => {
     }
 };
 
+/** Adds a Cosmos-like timestamp stamp in seconds. */
 const addTimestamp = (data: Record<string, unknown>): void => {
     const epochMillis: number = Date.now();
     data["_ts"] = epochMillis / 1000;
 };
 
+/** Throws when the provided identifier is empty or invalid. */
 const ensureIdentifier = (value: string, label: string) => {
     assertNotEmpty(value, label);
     if (!identifierRegex.test(value)) {
@@ -35,20 +39,33 @@ const ensureIdentifier = (value: string, label: string) => {
     }
 };
 
+/** Wraps schema/table names with quotes and dot. */
 const qualify = (schema: string, table: string): string => {
     return `"${schema}"."${table}"`;
 };
 
+/**
+ * CosmosDatabase implementation that stores JSON documents inside
+ * PostgreSQL tables and partitions them by schema/table mapping.
+ */
 export class PostgresDatabaseImpl implements CosmosDatabase {
+    /** Shared pg Pool reused for each container. */
     private readonly pool: Pool;
+    /** Database name provided by the Cosmos API. */
     private readonly dbName: string;
+    /** Cached CosmosContainers keyed by logical collection name. */
     private readonly collectionMap: Map<string, CosmosContainer> = new Map();
 
+    /**
+     * @param pool pg Pool used for queries.
+     * @param dbName Logical database name, used to scope containers.
+     */
     constructor(pool: Pool, dbName: string) {
         this.pool = pool;
         this.dbName = dbName;
     }
 
+    /** Lazily creates a CosmosContainer for a collection. */
     public async createCollection(coll: string): Promise<CosmosContainer> {
         ensureIdentifier(coll, "coll");
         const container = new CosmosContainer(coll, { schema: coll });
@@ -56,10 +73,12 @@ export class PostgresDatabaseImpl implements CosmosDatabase {
         return container;
     }
 
+    /** Removes cached metadata for a collection. */
     public async deleteCollection(coll: string): Promise<void> {
         this.collectionMap.delete(coll);
     }
 
+    /** Gets or creates the CosmosContainer for the provided collection. */
     public async getCollection(coll: string): Promise<CosmosContainer> {
         let collection = this.collectionMap.get(coll);
         if (!collection) {
@@ -68,6 +87,7 @@ export class PostgresDatabaseImpl implements CosmosDatabase {
         return collection;
     }
 
+    /** Inserts a new document into `<schema>.<partition>` jsonb table. */
     public async create(
         coll: string,
         data: CosmosDocument,
@@ -98,6 +118,7 @@ export class PostgresDatabaseImpl implements CosmosDatabase {
         return this.extractResource(result);
     }
 
+    /** Reads a document and throws 404 when not found. */
     public async read(
         coll: string,
         id: string,
@@ -110,6 +131,7 @@ export class PostgresDatabaseImpl implements CosmosDatabase {
         return resource;
     }
 
+    /** Reads a document and falls back to default when missing. */
     public async readOrDefault(
         coll: string,
         id: string,
@@ -132,6 +154,7 @@ export class PostgresDatabaseImpl implements CosmosDatabase {
         return result.rows[0].data as CosmosDocument;
     }
 
+    /** Inserts or replaces a document by id. */
     public async upsert(
         coll: string,
         data: CosmosDocument,
@@ -164,6 +187,7 @@ export class PostgresDatabaseImpl implements CosmosDatabase {
         return this.extractResource(result);
     }
 
+    /** Updates an existing document and merges payload with stored value. */
     public async update(
         coll: string,
         data: CosmosDocument,
@@ -193,6 +217,7 @@ export class PostgresDatabaseImpl implements CosmosDatabase {
         return this.extractResource(result);
     }
 
+    /** Deletes a document by id and returns the CosmosId when successful. */
     public async delete(
         coll: string,
         id: string,
@@ -217,6 +242,7 @@ export class PostgresDatabaseImpl implements CosmosDatabase {
         return { id };
     }
 
+    /** Finds documents by translating a Condition into SQL. */
     public async find(
         coll: string,
         condition: Condition,
@@ -238,6 +264,7 @@ export class PostgresDatabaseImpl implements CosmosDatabase {
         return result.rows.map((row) => row.data as CosmosDocument);
     }
 
+    /** Not implemented helper, kept for Cosmos interface compatibility. */
     public async findBySQL(
         coll: string,
         query: string,
@@ -246,6 +273,7 @@ export class PostgresDatabaseImpl implements CosmosDatabase {
         throw new Error("findBySQL is not supported for postgresql");
     }
 
+    /** Counts documents matching the provided Condition. */
     public async count(
         coll: string,
         condition: Condition,
@@ -266,6 +294,7 @@ export class PostgresDatabaseImpl implements CosmosDatabase {
         return Number(result.rows[0]?.count || 0);
     }
 
+    /** Extracts the first row data or throws CosmosError when empty. */
     private extractResource(result: QueryResult<{ data: CosmosDocument }>): CosmosDocument {
         assertIsDefined(result.rowCount);
         if (!result.rowCount) {

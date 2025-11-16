@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.PostgresConditionBuilder = void 0;
 const Condition_1 = require("../../condition/Condition");
 const Expression_1 = require("../../condition/Expression");
+/** Operators that map directly to a simple JSONB predicate. */
 const SIMPLE_OPERATORS = [
     "LIKE",
     "IN",
@@ -16,14 +17,30 @@ const SIMPLE_OPERATORS = [
     "ENDSWITH",
     "CONTAINS",
 ];
+/** Regex that captures `<field> <operator>` endings like `age >=`. */
 const simpleExpressionPattern = new RegExp(`(.+?)\\s*(${SIMPLE_OPERATORS.join("|")})\\s*$`, "i");
+/** Regex that captures array helper expressions such as `addresses[].city`. */
 const subQueryExpressionPattern = new RegExp(Expression_1.SUB_QUERY_EXPRESSION_PATTERN, "i");
+/**
+ * Converts a generic Condition into SQL fragments and bind parameters
+ * that operate against JSONB columns in PostgreSQL.
+ */
 class PostgresConditionBuilder {
+    /**
+     * @param alias Overrideable table alias, defaults to `t`.
+     */
     constructor(alias = "t") {
+        /** Parameter bag that mirrors `$1`, `$2`, ... placeholders. */
         this.params = [];
+        /** Counter for generating deterministic sub-query aliases. */
         this.aliasCounter = 0;
         this.alias = alias;
     }
+    /**
+     * Builds WHERE/ORDER/LIMIT clauses for a Condition.
+     * @param condition Filter/sort definition.
+     * @param countOnly When true order & limit clauses are skipped.
+     */
     build(condition, countOnly = false) {
         const whereClause = this.buildWhereClause(condition.filter);
         const orderClause = countOnly ? "" : this.buildOrderClause(condition.sort);
@@ -35,6 +52,7 @@ class PostgresConditionBuilder {
             params: this.params,
         };
     }
+    /** Creates the WHERE clause from a flattened filter object. */
     buildWhereClause(filter) {
         const clauses = [];
         const flattened = (0, Condition_1._flatten)(filter);
@@ -52,6 +70,7 @@ class PostgresConditionBuilder {
         }
         return `WHERE ${clauses.join(" AND ")}`;
     }
+    /** Generates ORDER BY clause from alternating field/direction tuples. */
     buildOrderClause(sort = []) {
         if (!sort.length) {
             return "";
@@ -70,12 +89,14 @@ class PostgresConditionBuilder {
         }
         return `ORDER BY ${orderings.join(", ")}`;
     }
+    /** Calculates LIMIT/OFFSET with defaults. */
     buildLimitClause(condition) {
         var _a, _b;
         const limit = (_a = condition.limit) !== null && _a !== void 0 ? _a : Condition_1.DEFAULT_LIMIT;
         const offset = (_b = condition.offset) !== null && _b !== void 0 ? _b : 0;
         return `LIMIT ${limit} OFFSET ${offset}`;
     }
+    /** Decides how a raw key/value pair should be rendered into SQL. */
     buildClause(rawKey, value) {
         var _a;
         const simpleMatch = simpleExpressionPattern.exec(rawKey);
@@ -100,6 +121,7 @@ class PostgresConditionBuilder {
         }
         return this.buildSimpleClause(rawKey, "=", value);
     }
+    /** Builds predicates for scalar comparison operators. */
     buildSimpleClause(field, operator, value) {
         switch (operator) {
             case "=":
@@ -156,6 +178,7 @@ class PostgresConditionBuilder {
                 return null;
         }
     }
+    /** Builds predicates for JSON arrays, including nested path variants. */
     buildArrayClause(field, operator, value, nestedPath) {
         const values = Array.isArray(value) ? value : [value];
         const pathParts = nestedPath ? nestedPath.split(".").filter((segment) => segment) : [];
@@ -167,6 +190,7 @@ class PostgresConditionBuilder {
         }
         return null;
     }
+    /** Emits EXISTS query that succeeds when any element matches. */
     buildArrayAnyClause(field, values, pathParts) {
         const arrayExpr = this.jsonArrayAccessor(field);
         const placeholder = this.addParam(values.map((v) => this.toTextValue(v)));
@@ -186,6 +210,7 @@ class PostgresConditionBuilder {
             WHERE ${accessor} = ANY(${placeholder}::text[])
         )`;
     }
+    /** Ensures every provided value is present within a JSON array. */
     buildArrayAllClause(field, values, pathParts) {
         const arrayExpr = this.jsonArrayAccessor(field);
         const placeholder = this.addParam(values.map((v) => this.toTextValue(v)));
@@ -214,6 +239,7 @@ class PostgresConditionBuilder {
             )
         )`;
     }
+    /** Provides a `->>` accessor for the final segment of the path. */
     jsonTextAccessor(field) {
         const parts = this.splitPath(field);
         if (!parts.length) {
@@ -223,6 +249,7 @@ class PostgresConditionBuilder {
         const base = this.jsonAccessor(parts.slice(0, -1).join("."));
         return `${base}->>'${this.escapeSegment(last)}'`;
     }
+    /** Provides a `->` chain accessor for nested JSONB traversal. */
     jsonAccessor(field) {
         const parts = this.splitPath(field);
         if (!parts.length) {
@@ -232,9 +259,11 @@ class PostgresConditionBuilder {
             return `${expr}->'${this.escapeSegment(segment)}'`;
         }, `${this.alias}.data`);
     }
+    /** Returns a JSON array accessor that defaults to empty array. */
     jsonArrayAccessor(field) {
         return `COALESCE(${this.jsonAccessor(field)}, '[]'::jsonb)`;
     }
+    /** Accesses nested properties of an element retrieved via jsonb_array_elements. */
     jsonElementTextAccessor(alias, pathParts) {
         if (!pathParts.length) {
             return `${alias}.value::text`;
@@ -245,20 +274,25 @@ class PostgresConditionBuilder {
             .reduce((expr, segment) => `${expr}->'${this.escapeSegment(segment)}'`, `${alias}.value`);
         return `${base}->>'${this.escapeSegment(last)}'`;
     }
+    /** Splits dotted field paths into sanitized segments. */
     splitPath(field) {
         return field.split(".").filter((segment) => segment);
     }
+    /** Escapes embedded quotes for safe use inside JSON path strings. */
     escapeSegment(segment) {
         return segment.replace(/'/g, "''");
     }
+    /** Adds a value to the parameter list and returns its placeholder token. */
     addParam(value) {
         this.params.push(value);
         return `$${this.params.length}`;
     }
+    /** Creates a unique alias for nested SQL fragments. */
     nextAlias(prefix = "elem") {
         this.aliasCounter += 1;
         return `${prefix}_${this.aliasCounter}`;
     }
+    /** Normalizes arbitrary JSON values into their textual representation. */
     toTextValue(value) {
         if (typeof value === "string") {
             return value;
