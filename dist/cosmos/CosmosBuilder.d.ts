@@ -83,5 +83,10 @@ export declare class CosmosBuilder {
      * @return Cosmos instance
      */
     build(): Cosmos;
+    /**
+     * Returns the connection string appropriate for the configured database type.
+     * Normalization (like postgres variant handling) is only applied for Postgres URLs.
+     */
+    private resolveConnectionString;
 }
 //# sourceMappingURL=CosmosBuilder.d.ts.map

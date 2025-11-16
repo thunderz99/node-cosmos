@@ -41,7 +41,7 @@ class CosmosBuilder {
      * @return cosmosBuilder
      */
     withConnectionString(connectionString) {
-        this.connectionString = CosmosBuilder.normalizeConnectionString(connectionString);
+        this.connectionString = connectionString;
         return this;
     }
     /**
@@ -140,18 +140,32 @@ class CosmosBuilder {
      * @return Cosmos instance
      */
     build() {
+        const resolvedConnectionString = this.resolveConnectionString();
         (0, assert_1.default)(this.dbType, `dbType should not be empty: ${this.dbType}`);
-        (0, assert_1.default)(this.connectionString, `connectionString should not be empty ${this.connectionString}`);
+        (0, assert_1.default)(resolvedConnectionString, `connectionString should not be empty ${resolvedConnectionString}`);
         if (this.dbType === CosmosBuilder.COSMOSDB) {
-            return new CosmosImpl_1.CosmosImpl(this.connectionString);
+            return new CosmosImpl_1.CosmosImpl(resolvedConnectionString);
         }
         if (this.dbType === CosmosBuilder.MONGODB) {
-            return new MongoImpl_1.MongoImpl(this.connectionString || "", this.expireAtEnabled, this.etagEnabled);
+            return new MongoImpl_1.MongoImpl(resolvedConnectionString || "", this.expireAtEnabled, this.etagEnabled);
         }
         if (this.dbType === CosmosBuilder.POSTGRES) {
-            return new PostgresImpl_1.PostgresImpl(this.connectionString, this.postgresPoolFactory);
+            return new PostgresImpl_1.PostgresImpl(resolvedConnectionString, this.postgresPoolFactory);
         }
         throw new Error(`Not supported dbType: ${this.dbType}`);
+    }
+    /**
+     * Returns the connection string appropriate for the configured database type.
+     * Normalization (like postgres variant handling) is only applied for Postgres URLs.
+     */
+    resolveConnectionString() {
+        if (!this.connectionString) {
+            return this.connectionString;
+        }
+        if (this.dbType === CosmosBuilder.POSTGRES) {
+            return CosmosBuilder.normalizeConnectionString(this.connectionString);
+        }
+        return this.connectionString;
     }
 }
 exports.CosmosBuilder = CosmosBuilder;
