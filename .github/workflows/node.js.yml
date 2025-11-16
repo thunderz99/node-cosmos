@@ -12,10 +12,23 @@ on:
 jobs:
     build:
         runs-on: ubuntu-latest
+        services:
+            postgres:
+                image: postgres:15
+                env:
+                    POSTGRES_PASSWORD: postgres
+                    POSTGRES_DB: postgres
+                ports:
+                    - 5432:5432
+                options: >-
+                    --health-cmd "pg_isready -U postgres"
+                    --health-interval 10s
+                    --health-timeout 5s
+                    --health-retries 5
 
         strategy:
             matrix:
-                node-version: [16.x]
+                node-version: [22.x]
                 # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
 
         steps:
@@ -36,3 +49,4 @@ jobs:
                   npm test
               env:
                   COSMOSDB_CONNECTION_STRING: ${{ secrets.COSMOSDB_CONNECTION_STRING }}
+                  POSTGRES_CONNECTION_STRING: postgres://postgres:postgres@localhost:5432/postgres
