@@ -36,7 +36,33 @@
   local replica set at `mongodb://localhost:27017/?replicaSet=rs0`.
 - `npm test -- --runInBand --watchman=false`: run all unit and integration tests.
 - `npm run audit:dependencies`: audit the complete locked dependency tree.
-- Before a PR, run build, lint, unit tests, dependency audit, and
-  `git diff --check`. Report database integration results separately and name any
-  unverified backends. Unit tests and a clean audit do not prove cloud or downstream
-  application compatibility.
+- Before opening or updating a PR, run build, lint, unit tests, **local integration
+  tests for all three backends**, dependency audit, and `git diff --check`.
+  CI results do not replace local integration testing.
+
+## Required local integration testing
+
+- Check the existing process environment and local `.env` for the connection
+  settings listed above before running tests. Do not print or commit credentials.
+- Run `npm run test:integration` locally to cover Cosmos DB, MongoDB, and
+  PostgreSQL. Run this in addition to `npm run test:unit`; unit tests alone are
+  insufficient for PR validation.
+- Local execution means running the test runner on the development machine.
+  Cosmos DB tests may connect to the Azure test account configured in `.env`;
+  they are not restricted to a local emulator. Use dedicated test databases and
+  allow the existing test cleanup hooks to remove their test collections/schemas.
+- If running suites separately, execute every backend's suites. For example,
+  run the Cosmos DB suites explicitly with:
+
+  ```sh
+  npm run test:integration -- --runTestsByPath tests/cosmos/CosmosBuilder.test.ts tests/cosmos/cosmosdb/CosmosImpl.test.ts
+  ```
+
+- If configuration, credentials, or a service is unavailable, attempt the
+  applicable local tests and report the blocker and unverified backend explicitly.
+  Do not silently skip a backend, substitute a green CI run, or report an unrun
+  suite as passing.
+- Record local unit and integration results separately in the PR, including the
+  backends exercised, suite/test counts, failures, and any remaining verification
+  gaps. A clean audit and passing tests do not prove downstream application
+  compatibility.
