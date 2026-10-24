@@ -43,10 +43,17 @@ jobs:
               with:
                   mongodb-version: "7.0"
                   mongodb-replica-set: rs0
-            - name: unit-test
+            - name: Install locked dependencies
+              run: npm ci
+            - name: Audit dependencies
+              run: npm run audit:dependencies
+            - name: Lint
+              run: npm run lint
+            - name: Unit tests
+              run: npm run test:unit
+            - name: Database integration tests
               run: |
-                  npm install
-                  npm test
+                  npm run test:integration
               env:
                   COSMOSDB_CONNECTION_STRING: ${{ secrets.COSMOSDB_CONNECTION_STRING }}
                   POSTGRES_CONNECTION_STRING: postgres://postgres:postgres@localhost:5432/postgres

@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.executeWithRetry = void 0;
+exports.executeWithRetry = executeWithRetry;
 const wait_1 = require("./wait");
 /**
  * execute a function with retry
@@ -29,7 +29,6 @@ async function executeWithRetry(f) {
         }
     }
 }
-exports.executeWithRetry = executeWithRetry;
 function isRetryableError(e) {
     return typeof e === "object" && e !== null && "code" in e && e.code === 429;
 }

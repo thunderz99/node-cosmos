@@ -16,6 +16,28 @@ Support cosmosdb / mongodb / postgres as backend databases.
 
 ## Quickstart
 
+### Requirements and development
+
+Use Node.js 22.13.0 or newer (the development version is pinned in `.node-version`).
+The library is built as CommonJS.
+
+```sh
+npm ci
+npm run build
+npm run lint
+npm run test:unit
+npm run audit:dependencies
+```
+
+`npm run test:unit` does not connect to databases. Run `npm run test:integration`
+against dedicated test databases: set `COSMOSDB_CONNECTION_STRING` and
+`POSTGRES_CONNECTION_STRING`, and provide a local MongoDB replica set or set
+`MONGODB_CONNECTION_STRING`. These tests create and delete test collections and
+schemas. `npm test -- --runInBand --watchman=false` runs both test groups.
+
+Commit `package-lock.json` with dependency changes and use `npm ci` for reproducible
+installs. Rebuild and commit the tracked `dist/` output when changing library code.
+
 ### Start programming
 
 ```typescript

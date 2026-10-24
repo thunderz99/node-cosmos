@@ -1,6 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.isArray = exports.notEmptyString = exports.notEmpty = void 0;
+exports.isArray = void 0;
+exports.notEmpty = notEmpty;
+exports.notEmptyString = notEmptyString;
 /**
  * A helper function to judge whether a value is empty
  * @param value
@@ -13,7 +15,6 @@ function notEmpty(value) {
     const testDummy = value;
     return true;
 }
-exports.notEmpty = notEmpty;
 /**
  * A helper function to judge whether a value is empty
  * @param value
@@ -26,7 +27,6 @@ function notEmptyString(value) {
     const testDummy = value;
     return true;
 }
-exports.notEmptyString = notEmptyString;
 /**
  * Judge a type is whether an array with type guard
  * @param maybeArray
