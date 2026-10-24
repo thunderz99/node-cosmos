@@ -11,8 +11,8 @@ let db: CosmosDatabase;
 let account: PostgresImpl;
 let cleanup: (() => Promise<void>) | undefined;
 
-const SCHEMA_NAME = "UnitTest_Postgres_" + randomstring.generate(7);
-const USERS_TABLE = "Users";
+const SCHEMA_NAME = 'UnitTest-Postgres_"' + randomstring.generate(7);
+const USERS_TABLE = 'Users-"123';
 const MEMBERS_TABLE = "Members";
 
 describe("PostgresImpl Test", () => {
@@ -52,6 +52,45 @@ describe("PostgresImpl Test", () => {
             expect(read1.lastName).toEqual(origin.lastName);
         } finally {
             await db.delete(SCHEMA_NAME, origin.id, USERS_TABLE);
+        }
+    });
+
+    it("persists and refreshes TTL metadata across create, upsert and partial update", async () => {
+        const id = "user_ttl_" + randomstring.generate(7);
+        const expectExpiry = (document: CosmosDocument, ttl: number, startedAt: number) => {
+            expect(document._expireAt).toBeGreaterThanOrEqual(startedAt + ttl);
+            expect(document._expireAt).toBeLessThanOrEqual(Math.floor(Date.now() / 1000) + ttl);
+        };
+
+        try {
+            let startedAt = Math.floor(Date.now() / 1000);
+            const created = await db.create(SCHEMA_NAME, { id, ttl: 60 }, USERS_TABLE);
+            expectExpiry(created, 60, startedAt);
+            expect((await db.read(SCHEMA_NAME, id, USERS_TABLE))._expireAt).toEqual(
+                created._expireAt,
+            );
+
+            startedAt = Math.floor(Date.now() / 1000);
+            const upserted = await db.upsert(SCHEMA_NAME, { id, ttl: 120 }, USERS_TABLE);
+            expectExpiry(upserted, 120, startedAt);
+            expect((await db.read(SCHEMA_NAME, id, USERS_TABLE))._expireAt).toEqual(
+                upserted._expireAt,
+            );
+
+            startedAt = Math.floor(Date.now() / 1000);
+            const updated = await db.update(
+                SCHEMA_NAME,
+                { id, firstName: "Updated", _expireAt: 1 },
+                USERS_TABLE,
+            );
+            expect(updated.ttl).toBe(120);
+            expectExpiry(updated, 120, startedAt);
+
+            const cleared = await db.update(SCHEMA_NAME, { id, ttl: undefined }, USERS_TABLE);
+            expect(cleared).not.toHaveProperty("_expireAt");
+            expect(await db.read(SCHEMA_NAME, id, USERS_TABLE)).not.toHaveProperty("_expireAt");
+        } finally {
+            await db.delete(SCHEMA_NAME, id, USERS_TABLE);
         }
     });
 

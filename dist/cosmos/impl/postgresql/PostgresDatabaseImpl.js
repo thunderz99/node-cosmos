@@ -1,13 +1,14 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.PostgresDatabaseImpl = void 0;
+exports.PostgresDatabaseImpl = exports.ensureIdentifier = exports.addExpireAt = void 0;
 const CosmosDatabase_1 = require("../../CosmosDatabase");
 const CosmosContainer_1 = require("../../CosmosContainer");
+const pg_1 = require("pg");
 const PostgresConditionBuilder_1 = require("./PostgresConditionBuilder");
 const assert_1 = require("../../../util/assert");
 const uuid_1 = require("uuid");
-/** Ensures schema/table names match the limited identifier rules. */
-const identifierRegex = /^[A-Za-z_][A-Za-z0-9_]*$/;
+/** Characters disallowed in schema/table names based on PostgreSQL identifier docs. */
+const invalidIdentifierChars = [";", ",", "&", "'", "\\", "(", ")", "\t", "\n", "\r"];
 /** Validates document ids for basic safety. */
 const checkValidId = (id) => {
     if (!id) {
@@ -22,16 +23,33 @@ const addTimestamp = (data) => {
     const epochMillis = Date.now();
     data["_ts"] = epochMillis / 1000;
 };
+/** Derives an `_expireAt` epoch second value when ttl is a valid number. */
+const addExpireAt = (data) => {
+    const ttlValue = data["ttl"];
+    if (typeof ttlValue !== "number" || !Number.isFinite(ttlValue)) {
+        delete data["_expireAt"];
+        return undefined;
+    }
+    const ttlSeconds = Math.trunc(ttlValue);
+    const epochSeconds = Math.floor(Date.now() / 1000) + ttlSeconds;
+    data["_expireAt"] = epochSeconds;
+    return epochSeconds;
+};
+exports.addExpireAt = addExpireAt;
 /** Throws when the provided identifier is empty or invalid. */
 const ensureIdentifier = (value, label) => {
     (0, assert_1.assertNotEmpty)(value, label);
-    if (!identifierRegex.test(value)) {
-        throw new Error(`${label} contains invalid characters: ${value}`);
+    if (invalidIdentifierChars.some((ch) => value.includes(ch))) {
+        throw new Error(`${label} should not contain invalid characters: ${value}`);
+    }
+    if (value.includes("--")) {
+        throw new Error(`${label} should not contain '--': ${value}`);
     }
 };
+exports.ensureIdentifier = ensureIdentifier;
 /** Wraps schema/table names with quotes and dot. */
 const qualify = (schema, table) => {
-    return `"${schema}"."${table}"`;
+    return `${(0, pg_1.escapeIdentifier)(schema)}.${(0, pg_1.escapeIdentifier)(table)}`;
 };
 /**
  * CosmosDatabase implementation that stores JSON documents inside
@@ -50,7 +68,7 @@ class PostgresDatabaseImpl {
     }
     /** Lazily creates a CosmosContainer for a collection. */
     async createCollection(coll) {
-        ensureIdentifier(coll, "coll");
+        (0, exports.ensureIdentifier)(coll, "coll");
         const container = new CosmosContainer_1.CosmosContainer(coll, { schema: coll });
         this.collectionMap.set(coll, container);
         return container;
@@ -72,8 +90,8 @@ class PostgresDatabaseImpl {
         (0, assert_1.assertNotEmpty)(coll, "coll");
         (0, assert_1.assertNotEmpty)(partition, "partition");
         (0, assert_1.assertIsDefined)(data, "data");
-        ensureIdentifier(coll, "coll");
-        ensureIdentifier(partition, "partition");
+        (0, exports.ensureIdentifier)(coll, "coll");
+        (0, exports.ensureIdentifier)(partition, "partition");
         const schema = coll;
         const table = partition;
         const fqtn = qualify(schema, table);
@@ -82,6 +100,7 @@ class PostgresDatabaseImpl {
         const payload = { ...data, id };
         payload[CosmosDatabase_1._partition] = partition;
         addTimestamp(payload);
+        (0, exports.addExpireAt)(payload);
         const text = `INSERT INTO ${fqtn} (id, data) VALUES ($1, $2::jsonb) RETURNING data`;
         const values = [id, JSON.stringify(payload)];
         const result = await this.pool.query(text, values);
@@ -100,8 +119,8 @@ class PostgresDatabaseImpl {
         (0, assert_1.assertNotEmpty)(coll, "coll");
         (0, assert_1.assertNotEmpty)(partition, "partition");
         (0, assert_1.assertNotEmpty)(id, "id");
-        ensureIdentifier(coll, "coll");
-        ensureIdentifier(partition, "partition");
+        (0, exports.ensureIdentifier)(coll, "coll");
+        (0, exports.ensureIdentifier)(partition, "partition");
         const fqtn = qualify(coll, partition);
         const text = `SELECT data FROM ${fqtn} WHERE id = $1`;
         const values = [id];
@@ -116,8 +135,8 @@ class PostgresDatabaseImpl {
         (0, assert_1.assertNotEmpty)(coll, "coll");
         (0, assert_1.assertNotEmpty)(partition, "partition");
         (0, assert_1.assertIsDefined)(data, "data");
-        ensureIdentifier(coll, "coll");
-        ensureIdentifier(partition, "partition");
+        (0, exports.ensureIdentifier)(coll, "coll");
+        (0, exports.ensureIdentifier)(partition, "partition");
         const schema = coll;
         const table = partition;
         const fqtn = qualify(schema, table);
@@ -126,6 +145,7 @@ class PostgresDatabaseImpl {
         const payload = { ...data, id };
         payload[CosmosDatabase_1._partition] = partition;
         addTimestamp(payload);
+        (0, exports.addExpireAt)(payload);
         const text = `INSERT INTO ${fqtn} (id, data)
             VALUES ($1, $2::jsonb)
             ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data
@@ -140,12 +160,13 @@ class PostgresDatabaseImpl {
         (0, assert_1.assertNotEmpty)(partition, "partition");
         (0, assert_1.assertIsDefined)(data, "data");
         (0, assert_1.assertIsDefined)(data.id, "data.id");
-        ensureIdentifier(coll, "coll");
-        ensureIdentifier(partition, "partition");
+        (0, exports.ensureIdentifier)(coll, "coll");
+        (0, exports.ensureIdentifier)(partition, "partition");
         const existing = await this.read(coll, data.id, partition);
         const payload = { ...existing, ...data };
         payload[CosmosDatabase_1._partition] = partition;
         addTimestamp(payload);
+        (0, exports.addExpireAt)(payload);
         const fqtn = qualify(coll, partition);
         const text = `UPDATE ${fqtn} SET data = $1::jsonb WHERE id = $2 RETURNING data`;
         const targetId = payload.id;
@@ -161,8 +182,8 @@ class PostgresDatabaseImpl {
         (0, assert_1.assertNotEmpty)(coll, "coll");
         (0, assert_1.assertNotEmpty)(partition, "partition");
         (0, assert_1.assertNotEmpty)(id, "id");
-        ensureIdentifier(coll, "coll");
-        ensureIdentifier(partition, "partition");
+        (0, exports.ensureIdentifier)(coll, "coll");
+        (0, exports.ensureIdentifier)(partition, "partition");
         const fqtn = qualify(coll, partition);
         const text = `DELETE FROM ${fqtn} WHERE id = $1 RETURNING id`;
         const values = [id];
@@ -176,8 +197,8 @@ class PostgresDatabaseImpl {
     async find(coll, condition, partition = coll) {
         (0, assert_1.assertNotEmpty)(coll, "coll");
         (0, assert_1.assertNotEmpty)(partition, "partition");
-        ensureIdentifier(coll, "coll");
-        ensureIdentifier(partition, "partition");
+        (0, exports.ensureIdentifier)(coll, "coll");
+        (0, exports.ensureIdentifier)(partition, "partition");
         const fqtn = qualify(coll, partition);
         const builder = new PostgresConditionBuilder_1.PostgresConditionBuilder();
         const { whereClause, orderClause, limitClause, params } = builder.build(condition);
@@ -195,8 +216,8 @@ class PostgresDatabaseImpl {
         var _a;
         (0, assert_1.assertNotEmpty)(coll, "coll");
         (0, assert_1.assertNotEmpty)(partition, "partition");
-        ensureIdentifier(coll, "coll");
-        ensureIdentifier(partition, "partition");
+        (0, exports.ensureIdentifier)(coll, "coll");
+        (0, exports.ensureIdentifier)(partition, "partition");
         const fqtn = qualify(coll, partition);
         const builder = new PostgresConditionBuilder_1.PostgresConditionBuilder();
         const { whereClause, params } = builder.build(condition, true);

@@ -1,4 +1,4 @@
-import { Pool, PoolConfig } from "pg";
+import { escapeIdentifier, Pool, PoolConfig } from "pg";
 import dotenv from "dotenv";
 import { CosmosBuilder } from "../../../../src/cosmos/CosmosBuilder";
 dotenv.config();
@@ -40,7 +40,7 @@ export const createPostgresTestEnvironment = async (
             const client = await pool.connect();
             try {
                 for (const { schema } of definitions) {
-                    await client.query(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`);
+                    await client.query(`DROP SCHEMA IF EXISTS ${escapeIdentifier(schema)} CASCADE`);
                 }
             } finally {
                 client.release();
@@ -56,13 +56,13 @@ const createSchemasAndTables = async (
     const client = await pool.connect();
     try {
         for (const { schema, tables } of definitions) {
-            await client.query(`CREATE SCHEMA IF NOT EXISTS "${schema}"`);
+            await client.query(`CREATE SCHEMA IF NOT EXISTS ${escapeIdentifier(schema)}`);
             for (const table of tables) {
                 await client.query(`
-                    CREATE TABLE IF NOT EXISTS "${schema}"."${table}" (
+                    CREATE TABLE IF NOT EXISTS ${escapeIdentifier(schema)}.${escapeIdentifier(table)} (
                         id text NOT NULL,
                         data jsonb NOT NULL,
-                        CONSTRAINT "${table}_pkey" PRIMARY KEY (id)
+                        PRIMARY KEY (id)
                     );
                 `);
             }

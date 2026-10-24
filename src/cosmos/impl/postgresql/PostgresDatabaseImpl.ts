@@ -7,13 +7,13 @@ import {
     _partition as partitionField,
 } from "../../CosmosDatabase";
 import { CosmosContainer } from "../../CosmosContainer";
-import { Pool, QueryResult } from "pg";
+import { escapeIdentifier, Pool, QueryResult } from "pg";
 import { PostgresConditionBuilder } from "./PostgresConditionBuilder";
 import { assertIsDefined, assertNotEmpty } from "../../../util/assert";
 import { v4 as uuidv4 } from "uuid";
 
-/** Ensures schema/table names match the limited identifier rules. */
-const identifierRegex = /^[A-Za-z_][A-Za-z0-9_]*$/;
+/** Characters disallowed in schema/table names based on PostgreSQL identifier docs. */
+const invalidIdentifierChars = [";", ",", "&", "'", "\\", "(", ")", "\t", "\n", "\r"];
 
 /** Validates document ids for basic safety. */
 const checkValidId = (id: string) => {
@@ -31,17 +31,33 @@ const addTimestamp = (data: Record<string, unknown>): void => {
     data["_ts"] = epochMillis / 1000;
 };
 
+/** Derives an `_expireAt` epoch second value when ttl is a valid number. */
+export const addExpireAt = (data: Record<string, unknown>): number | undefined => {
+    const ttlValue = data["ttl"];
+    if (typeof ttlValue !== "number" || !Number.isFinite(ttlValue)) {
+        delete data["_expireAt"];
+        return undefined;
+    }
+    const ttlSeconds = Math.trunc(ttlValue);
+    const epochSeconds = Math.floor(Date.now() / 1000) + ttlSeconds;
+    data["_expireAt"] = epochSeconds;
+    return epochSeconds;
+};
+
 /** Throws when the provided identifier is empty or invalid. */
-const ensureIdentifier = (value: string, label: string) => {
+export const ensureIdentifier = (value: string, label: string) => {
     assertNotEmpty(value, label);
-    if (!identifierRegex.test(value)) {
-        throw new Error(`${label} contains invalid characters: ${value}`);
+    if (invalidIdentifierChars.some((ch) => value.includes(ch))) {
+        throw new Error(`${label} should not contain invalid characters: ${value}`);
+    }
+    if (value.includes("--")) {
+        throw new Error(`${label} should not contain '--': ${value}`);
     }
 };
 
 /** Wraps schema/table names with quotes and dot. */
 const qualify = (schema: string, table: string): string => {
-    return `"${schema}"."${table}"`;
+    return `${escapeIdentifier(schema)}.${escapeIdentifier(table)}`;
 };
 
 /**
@@ -110,6 +126,7 @@ export class PostgresDatabaseImpl implements CosmosDatabase {
         const payload: CosmosDocument = { ...data, id };
         payload[partitionField] = partition;
         addTimestamp(payload);
+        addExpireAt(payload);
 
         const text = `INSERT INTO ${fqtn} (id, data) VALUES ($1, $2::jsonb) RETURNING data`;
         const values = [id, JSON.stringify(payload)];
@@ -119,11 +136,7 @@ export class PostgresDatabaseImpl implements CosmosDatabase {
     }
 
     /** Reads a document and throws 404 when not found. */
-    public async read(
-        coll: string,
-        id: string,
-        partition: string = coll,
-    ): Promise<CosmosDocument> {
+    public async read(coll: string, id: string, partition: string = coll): Promise<CosmosDocument> {
         const resource = await this.readOrDefault(coll, id, partition, null);
         if (!resource) {
             throw new CosmosError(undefined, 404, `item not found. id:${id}`);
@@ -177,6 +190,7 @@ export class PostgresDatabaseImpl implements CosmosDatabase {
         const payload: CosmosDocument = { ...data, id };
         payload[partitionField] = partition;
         addTimestamp(payload);
+        addExpireAt(payload);
 
         const text = `INSERT INTO ${fqtn} (id, data)
             VALUES ($1, $2::jsonb)
@@ -205,6 +219,7 @@ export class PostgresDatabaseImpl implements CosmosDatabase {
         const payload: CosmosDocument = { ...existing, ...data };
         payload[partitionField] = partition;
         addTimestamp(payload);
+        addExpireAt(payload);
 
         const fqtn = qualify(coll, partition);
         const text = `UPDATE ${fqtn} SET data = $1::jsonb WHERE id = $2 RETURNING data`;
@@ -218,11 +233,7 @@ export class PostgresDatabaseImpl implements CosmosDatabase {
     }
 
     /** Deletes a document by id and returns the CosmosId when successful. */
-    public async delete(
-        coll: string,
-        id: string,
-        partition: string = coll,
-    ): Promise<CosmosId> {
+    public async delete(coll: string, id: string, partition: string = coll): Promise<CosmosId> {
         assertNotEmpty(coll, "coll");
         assertNotEmpty(partition, "partition");
         assertNotEmpty(id, "id");

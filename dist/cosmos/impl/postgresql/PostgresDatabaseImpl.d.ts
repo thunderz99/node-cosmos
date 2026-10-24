@@ -2,6 +2,10 @@ import { Condition } from "../../condition/Condition";
 import { CosmosDatabase, CosmosDocument, CosmosId } from "../../CosmosDatabase";
 import { CosmosContainer } from "../../CosmosContainer";
 import { Pool } from "pg";
+/** Derives an `_expireAt` epoch second value when ttl is a valid number. */
+export declare const addExpireAt: (data: Record<string, unknown>) => number | undefined;
+/** Throws when the provided identifier is empty or invalid. */
+export declare const ensureIdentifier: (value: string, label: string) => void;
 /**
  * CosmosDatabase implementation that stores JSON documents inside
  * PostgreSQL tables and partitions them by schema/table mapping.
