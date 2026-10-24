@@ -249,7 +249,7 @@ class ConditionUtil {
      * Convert sort array to MongoDB sort object
      */
     static toBsonSort(sort: string[] = []): Sort {
-        const sortObject: Sort = {};
+        const sortObject: Record<string, 1 | -1> = {};
         for (let i = 0; i < sort.length; i += 2) {
             const field = sort[i];
             const order = (sort[i + 1] || "ASC").toUpperCase() === "DESC" ? -1 : 1;

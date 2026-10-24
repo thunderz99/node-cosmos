@@ -172,7 +172,7 @@ class MongoDatabaseImpl {
         const resource = await collection.findOneAndReplace({ id: id }, // Query by _id
         _data, // Set new data
         {
-            upsert: true,
+            upsert: true, // Enable upsert
             returnDocument: "after", // Return the updated document
         });
         (0, assert_1.assertIsDefined)(resource, `item, coll:${coll}, id:${data.id}, partition:${partition}`);
@@ -211,7 +211,7 @@ class MongoDatabaseImpl {
         const resource = await collection.findOneAndUpdate({ id: id }, // Query by _id
         { $set: _data }, // Set new data
         {
-            upsert: false,
+            upsert: false, // normal update(not an upsert)
             returnDocument: "after", // Return the updated document
         });
         (0, assert_1.assertIsDefined)(resource, `item, coll:${coll}, id:${data.id}, partition:${partition}`);
